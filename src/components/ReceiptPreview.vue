@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { jsPDF } from 'jspdf'
 import type { ReceiptData } from '../types'
 
 const props = defineProps<{
@@ -41,6 +42,119 @@ const formatCurrency = (amount: number) => {
 function printReceipt() {
   window.print()
 }
+
+function exportPDF() {
+  const doc = new jsPDF()
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const margin = 20
+  let y = 20
+
+  // Title
+  doc.setFontSize(20)
+  doc.setFont('helvetica', 'bold')
+  doc.text('QUITTANCE DE LOYER', pageWidth / 2, y, { align: 'center' })
+  y += 10
+
+  // Period
+  doc.setFontSize(14)
+  doc.setFont('helvetica', 'normal')
+  doc.text(periodLabel.value.charAt(0).toUpperCase() + periodLabel.value.slice(1), pageWidth / 2, y, { align: 'center' })
+  y += 5
+
+  // Line separator
+  doc.setLineWidth(0.5)
+  doc.line(margin, y, pageWidth - margin, y)
+  y += 15
+
+  // Landlord section
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'bold')
+  doc.text('BAILLEUR', margin, y)
+  y += 6
+  doc.setFont('helvetica', 'normal')
+  doc.text(props.data.landlord.name, margin, y)
+  y += 5
+  const landlordAddressLines = doc.splitTextToSize(props.data.landlord.address, 80)
+  doc.text(landlordAddressLines, margin, y)
+  y += landlordAddressLines.length * 5 + 5
+
+  // Tenant section
+  doc.setFont('helvetica', 'bold')
+  doc.text('LOCATAIRE', margin, y)
+  y += 6
+  doc.setFont('helvetica', 'normal')
+  doc.text(props.data.tenant.name, margin, y)
+  y += 12
+
+  // Property section
+  doc.setFillColor(245, 245, 245)
+  doc.rect(margin, y - 3, pageWidth - 2 * margin, 20, 'F')
+  doc.setFont('helvetica', 'bold')
+  doc.text('LOGEMENT', margin + 3, y + 3)
+  doc.setFont('helvetica', 'normal')
+  const propertyLines = doc.splitTextToSize(props.data.property.address, pageWidth - 2 * margin - 6)
+  doc.text(propertyLines, margin + 3, y + 10)
+  y += 25
+
+  // Main text
+  doc.setFontSize(11)
+  const mainText = `Je soussigné(e) ${props.data.landlord.name}, propriétaire du logement désigné ci-dessus, déclare avoir reçu de ${props.data.tenant.name} la somme de ${formatCurrency(totalRent.value)} au titre du paiement du loyer et des charges pour la période du 1er au dernier jour du mois de ${periodLabel.value}.`
+  const mainTextLines = doc.splitTextToSize(mainText, pageWidth - 2 * margin)
+  doc.text(mainTextLines, margin, y)
+  y += mainTextLines.length * 6 + 10
+
+  // Rent details table
+  const tableX = pageWidth / 2 - 40
+  doc.setFontSize(11)
+  
+  doc.text('Loyer nu', tableX, y)
+  doc.text(formatCurrency(props.data.rent.baseRent), tableX + 70, y, { align: 'right' })
+  y += 7
+  
+  doc.text('Provision pour charges', tableX, y)
+  doc.text(formatCurrency(props.data.rent.charges), tableX + 70, y, { align: 'right' })
+  y += 2
+  doc.line(tableX, y, tableX + 70, y)
+  y += 7
+  
+  doc.setFont('helvetica', 'bold')
+  doc.text('Total', tableX, y)
+  doc.text(formatCurrency(totalRent.value), tableX + 70, y, { align: 'right' })
+  y += 15
+
+  // Payment date
+  doc.setFont('helvetica', 'normal')
+  doc.text(`Paiement reçu le ${formattedPaymentDate.value}.`, pageWidth / 2, y, { align: 'center' })
+  y += 15
+
+  // Legal notice
+  doc.setFontSize(9)
+  doc.setTextColor(100)
+  const legalText = 'Cette quittance annule tous les reçus qui auraient pu être établis précédemment en cas de paiement partiel du présent terme. Elle est délivrée sous réserve de tous les droits du bailleur.'
+  const legalLines = doc.splitTextToSize(legalText, pageWidth - 2 * margin)
+  doc.text(legalLines, margin, y)
+  y += legalLines.length * 5 + 15
+
+  // Signature section
+  doc.setTextColor(0)
+  doc.setFontSize(11)
+  const signatureX = pageWidth - margin - 60
+  doc.text('Fait à ________________________', signatureX, y)
+  y += 7
+  doc.text(`Le ${formattedPaymentDate.value}`, signatureX, y)
+  y += 15
+  
+  doc.setDrawColor(150)
+  doc.setLineDashPattern([2, 2], 0)
+  doc.rect(signatureX, y, 60, 30)
+  doc.setFontSize(9)
+  doc.setTextColor(150)
+  doc.text('Signature du bailleur', signatureX + 30, y + 25, { align: 'center' })
+
+  // Save
+  const filename = `quittance_${periodLabel.value.replace(' ', '_')}.pdf`
+  doc.save(filename)
+}
 </script>
 
 <template>
@@ -48,6 +162,9 @@ function printReceipt() {
     <div class="receipt-actions no-print">
       <button type="button" class="back-btn" @click="$emit('back')">
         ← Retour
+      </button>
+      <button type="button" class="pdf-btn" @click="exportPDF">
+        📄 Télécharger PDF
       </button>
       <button type="button" class="print-btn" @click="printReceipt">
         🖨️ Imprimer
@@ -139,7 +256,8 @@ function printReceipt() {
 }
 
 .back-btn,
-.print-btn {
+.print-btn,
+.pdf-btn {
   padding: 0.5rem 1rem;
   border-radius: 6px;
   cursor: pointer;
@@ -154,6 +272,16 @@ function printReceipt() {
 
 .back-btn:hover {
   background: #444;
+}
+
+.pdf-btn {
+  background: #16a34a;
+  color: white;
+  border: none;
+}
+
+.pdf-btn:hover {
+  background: #15803d;
 }
 
 .print-btn {
