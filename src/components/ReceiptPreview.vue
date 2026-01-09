@@ -203,6 +203,12 @@ function exportPDF() {
         </p>
 
         <table class="rent-details">
+          <thead>
+            <tr>
+              <th scope="col">Désignation</th>
+              <th scope="col" class="amount">Montant</th>
+            </tr>
+          </thead>
           <tbody>
             <tr>
               <td>Loyer nu</td>

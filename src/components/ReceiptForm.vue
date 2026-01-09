@@ -6,7 +6,7 @@ const emit = defineEmits<{
   generate: [data: ReceiptData]
 }>()
 
-const today = new Date().toISOString().split('T')[0]
+const today: string = new Date().toISOString().split('T')[0] ?? ''
 const currentMonth = new Date().getMonth() + 1
 const currentYear = new Date().getFullYear()
 
@@ -140,8 +140,9 @@ function handleSubmit() {
           />
         </div>
         <div class="form-group">
-          <label>Total (€)</label>
+          <label for="totalRent">Total (€)</label>
           <input
+            id="totalRent"
             type="text"
             :value="totalRent.toFixed(2)"
             disabled
@@ -283,7 +284,7 @@ select:focus {
 
   .total-input {
     background: #f0f0f0;
-    color: #16a34a;
+    color: #15803d;
   }
 }
 </style>
