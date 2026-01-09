@@ -27,3 +27,36 @@ export interface ReceiptData {
   property: Property
   rent: RentDetails
 }
+
+// Lease (Bail) types
+export interface LeaseParty {
+  name: string
+  address: string
+  birthDate?: string
+  birthPlace?: string
+}
+
+export interface LeaseProperty {
+  address: string
+  type: 'furnished' | 'unfurnished'
+  surface: number
+  rooms: number
+  description?: string
+}
+
+export interface LeaseTerms {
+  startDate: string
+  duration: number // in months
+  monthlyRent: number
+  charges: number
+  deposit: number
+  rentRevision: boolean
+  inventoryDate?: string
+}
+
+export interface LeaseData {
+  landlord: LeaseParty
+  tenant: LeaseParty
+  property: LeaseProperty
+  terms: LeaseTerms
+}

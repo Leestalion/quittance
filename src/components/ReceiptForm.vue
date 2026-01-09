@@ -4,6 +4,7 @@ import type { ReceiptData } from '../types'
 
 const emit = defineEmits<{
   generate: [data: ReceiptData]
+  back: []
 }>()
 
 const today: string = new Date().toISOString().split('T')[0] ?? ''
@@ -62,6 +63,13 @@ function handleSubmit() {
 
 <template>
   <form class="receipt-form" @submit.prevent="handleSubmit">
+    <div class="form-header">
+      <button type="button" class="back-btn" @click="$emit('back')">
+        ← Retour
+      </button>
+      <h2>Nouvelle quittance de loyer</h2>
+    </div>
+
     <fieldset>
       <legend>Bailleur</legend>
       <div class="form-group">
@@ -190,6 +198,32 @@ function handleSubmit() {
   text-align: left;
 }
 
+.form-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.form-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.back-btn {
+  padding: 0.5rem 1rem;
+  background: #333;
+  color: white;
+  border: 1px solid #444;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.back-btn:hover {
+  background: #444;
+}
+
 fieldset {
   border: 1px solid #444;
   border-radius: 8px;
@@ -286,5 +320,12 @@ select:focus {
     background: #f0f0f0;
     color: #15803d;
   }
-}
+  .back-btn {
+    background: #f0f0f0;
+    color: #333;
+  }
+
+  .back-btn:hover {
+    background: #e0e0e0;
+  }}
 </style>
