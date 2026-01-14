@@ -43,6 +43,25 @@ function printReceipt() {
   window.print()
 }
 
+function sendByEmail() {
+  const subject = `Quittance de loyer - ${periodLabel.value}`
+  const body = `Bonjour ${props.data.tenant.name},
+
+Veuillez trouver ci-joint la quittance de loyer pour la période de ${periodLabel.value}.
+
+Détails :
+- Loyer : ${formatCurrency(props.data.rent.baseRent)}
+- Charges : ${formatCurrency(props.data.rent.charges)}
+- Total : ${formatCurrency(totalRent.value)}
+- Date de paiement : ${formattedPaymentDate.value}
+
+Cordialement,
+${props.data.landlord.name}`
+
+  const mailtoLink = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+  window.location.href = mailtoLink
+}
+
 function exportPDF() {
   const doc = new jsPDF()
   const pageWidth = doc.internal.pageSize.getWidth()
@@ -166,6 +185,9 @@ function exportPDF() {
       <button type="button" class="pdf-btn" @click="exportPDF">
         📄 Télécharger PDF
       </button>
+      <button type="button" class="email-btn" @click="sendByEmail">
+        ✉️ Envoyer par email
+      </button>
       <button type="button" class="print-btn" @click="printReceipt">
         🖨️ Imprimer
       </button>
@@ -288,6 +310,16 @@ function exportPDF() {
 
 .pdf-btn:hover {
   background: #15803d;
+}
+
+.email-btn {
+  background: #0891b2;
+  color: white;
+  border: none;
+}
+
+.email-btn:hover {
+  background: #0e7490;
 }
 
 .print-btn {

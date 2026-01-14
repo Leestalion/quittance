@@ -22,3 +22,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Rust
+backend/target
+backend/**/*.rs.bk
+backend/Cargo.lock
+
+# Environment
+.env
+backend/.env
