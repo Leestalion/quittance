@@ -27,7 +27,7 @@ async fn list_properties(
 
     let properties = sqlx::query_as!(
         Property,
-        "SELECT id, user_id, address, property_type, furnished, surface_area, rooms, max_occupants, description, created_at, updated_at 
+        "SELECT id, user_id, organization_id, address, property_type, furnished, surface_area, rooms, max_occupants, description, created_at, updated_at 
          FROM properties
          WHERE user_id = $1
          ORDER BY created_at DESC",
@@ -49,11 +49,12 @@ async fn create_property(
     let property = sqlx::query_as!(
         Property,
         r#"
-        INSERT INTO properties (user_id, address, property_type, furnished, surface_area, rooms, max_occupants, description)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        RETURNING id, user_id, address, property_type, furnished, surface_area, rooms, max_occupants, description, created_at, updated_at
+        INSERT INTO properties (user_id, organization_id, address, property_type, furnished, surface_area, rooms, max_occupants, description)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING id, user_id, organization_id, address, property_type, furnished, surface_area, rooms, max_occupants, description, created_at, updated_at
         "#,
         user_id,
+        data.organization_id,
         data.address,
         data.property_type,
         data.furnished,
@@ -74,7 +75,7 @@ async fn get_property(
 ) -> Result<Json<Property>, AppError> {
     let property = sqlx::query_as!(
         Property,
-        "SELECT id, user_id, address, property_type, furnished, surface_area, rooms, max_occupants, description, created_at, updated_at 
+        "SELECT id, user_id, organization_id, address, property_type, furnished, surface_area, rooms, max_occupants, description, created_at, updated_at 
          FROM properties 
          WHERE id = $1",
         id
@@ -114,7 +115,7 @@ async fn update_property(
         UPDATE properties
         SET address = $1, property_type = $2, furnished = $3, surface_area = $4, rooms = $5, max_occupants = $6, description = $7, updated_at = CURRENT_TIMESTAMP
         WHERE id = $8
-        RETURNING id, user_id, address, property_type, furnished, surface_area, rooms, max_occupants, description, created_at, updated_at
+        RETURNING id, user_id, organization_id, address, property_type, furnished, surface_area, rooms, max_occupants, description, created_at, updated_at
         "#,
         data.address,
         data.property_type,

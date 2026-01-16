@@ -35,11 +35,3 @@ pub struct CreateLease {
     pub rent_revision: bool,
     pub inventory_date: Option<NaiveDate>,
 }
-
-#[allow(dead_code)]
-#[derive(Debug, Deserialize)]
-pub struct UpdateLease {
-    pub monthly_rent: Option<BigDecimal>,
-    pub charges: Option<BigDecimal>,
-    pub status: Option<String>,
-}

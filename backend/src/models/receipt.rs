@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
 
-#[allow(dead_code)]
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct Receipt {
     pub id: Uuid,

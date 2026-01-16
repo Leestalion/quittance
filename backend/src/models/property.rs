@@ -7,7 +7,8 @@ use uuid::Uuid;
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct Property {
     pub id: Uuid,
-    pub user_id: Uuid,
+    pub user_id: Option<Uuid>,
+    pub organization_id: Option<Uuid>,
     pub address: String,
     pub property_type: String,
     pub furnished: bool,
@@ -21,23 +22,14 @@ pub struct Property {
 
 #[derive(Debug, Deserialize)]
 pub struct CreateProperty {
+    #[allow(dead_code)]
+    pub user_id: Option<Uuid>,
+    pub organization_id: Option<Uuid>,
     pub address: String,
     pub property_type: String,
     pub furnished: bool,
     pub surface_area: Option<BigDecimal>,
     pub rooms: Option<i32>,
     pub max_occupants: i32,
-    pub description: Option<String>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Deserialize)]
-pub struct UpdateProperty {
-    pub address: Option<String>,
-    pub property_type: Option<String>,
-    pub furnished: Option<bool>,
-    pub surface_area: Option<BigDecimal>,
-    pub rooms: Option<i32>,
-    pub max_occupants: Option<i32>,
     pub description: Option<String>,
 }

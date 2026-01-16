@@ -28,15 +28,3 @@ pub struct CreateTenant {
     pub birth_place: Option<String>,
     pub notes: Option<String>,
 }
-
-#[allow(dead_code)]
-#[derive(Debug, Deserialize)]
-pub struct UpdateTenant {
-    pub name: Option<String>,
-    pub email: Option<String>,
-    pub phone: Option<String>,
-    pub address: Option<String>,
-    pub birth_date: Option<NaiveDate>,
-    pub birth_place: Option<String>,
-    pub notes: Option<String>,
-}

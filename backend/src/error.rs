@@ -17,6 +17,9 @@ pub enum AppError {
     #[error("Not found: {0}")]
     NotFound(String),
     
+    #[error("Bad request: {0}")]
+    BadRequest(String),
+    
     #[error("Validation error: {0}")]
     Validation(String),
     
@@ -33,6 +36,7 @@ impl IntoResponse for AppError {
             }
             AppError::Auth(ref msg) => (StatusCode::UNAUTHORIZED, msg.clone()),
             AppError::NotFound(ref msg) => (StatusCode::NOT_FOUND, msg.clone()),
+            AppError::BadRequest(ref msg) => (StatusCode::BAD_REQUEST, msg.clone()),
             AppError::Validation(ref msg) => (StatusCode::BAD_REQUEST, msg.clone()),
             AppError::Internal => (
                 StatusCode::INTERNAL_SERVER_ERROR,

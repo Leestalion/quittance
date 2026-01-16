@@ -42,6 +42,7 @@ async fn main() {
     let api_router = Router::new()
         .route("/health", get(health_check))
         .nest("/auth", routes::auth::router())
+        .nest("/organizations", routes::organizations::router())
         .nest("/properties", routes::properties::router())
         .nest("/tenants", routes::tenants::router())
         .nest("/leases", routes::leases::router())
