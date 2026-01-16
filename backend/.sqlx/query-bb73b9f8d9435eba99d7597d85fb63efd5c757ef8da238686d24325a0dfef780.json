@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        UPDATE properties\n        SET address = $1, property_type = $2, furnished = $3, surface_area = $4, rooms = $5, max_occupants = $6, description = $7, updated_at = CURRENT_TIMESTAMP\n        WHERE id = $8\n        RETURNING id, user_id, organization_id, address, property_type, furnished, surface_area, rooms, max_occupants, description, created_at, updated_at\n        ",
+  "query": "\n        SELECT p.id, p.user_id, p.organization_id, p.address, p.property_type, \n               p.furnished, p.surface_area, p.rooms, p.max_occupants, p.description, \n               p.created_at, p.updated_at\n        FROM properties p\n        LEFT JOIN organization_members om ON p.organization_id = om.organization_id\n        WHERE p.id = $1 \n        AND (p.user_id = $2 OR om.user_id = $2)\n        ",
   "describe": {
     "columns": [
       {
@@ -66,13 +66,7 @@
     ],
     "parameters": {
       "Left": [
-        "Text",
-        "Varchar",
-        "Bool",
-        "Numeric",
-        "Int4",
-        "Int4",
-        "Text",
+        "Uuid",
         "Uuid"
       ]
     },
@@ -91,5 +85,5 @@
       true
     ]
   },
-  "hash": "d96a36121f2a9e5657383b9a11c40acd5a007217c987bc178bdceaf7382ea0db"
+  "hash": "bb73b9f8d9435eba99d7597d85fb63efd5c757ef8da238686d24325a0dfef780"
 }

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, user_id, organization_id, address, property_type, furnished, surface_area, rooms, max_occupants, description, created_at, updated_at \n         FROM properties \n         WHERE id = $1",
+  "query": "\n        UPDATE properties\n        SET user_id = $1, organization_id = $2, address = $3, property_type = $4, furnished = $5, surface_area = $6, rooms = $7, max_occupants = $8, description = $9, updated_at = CURRENT_TIMESTAMP\n        WHERE id = $10\n        RETURNING id, user_id, organization_id, address, property_type, furnished, surface_area, rooms, max_occupants, description, created_at, updated_at\n        ",
   "describe": {
     "columns": [
       {
@@ -66,6 +66,15 @@
     ],
     "parameters": {
       "Left": [
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Varchar",
+        "Bool",
+        "Numeric",
+        "Int4",
+        "Int4",
+        "Text",
         "Uuid"
       ]
     },
@@ -84,5 +93,5 @@
       true
     ]
   },
-  "hash": "24fceaa077c0718bc88c16dffc625331e03e6b245f96e2b7ebfcdcdb99ce4bd1"
+  "hash": "787fd6100adfc751dc119262b3dfd45a660d790ce992230d0f301194a473fc74"
 }

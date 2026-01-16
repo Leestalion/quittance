@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT EXISTS(\n            SELECT 1 FROM properties p\n            WHERE p.id = $1 AND (\n                p.user_id = $2\n                OR EXISTS(\n                    SELECT 1 FROM organization_members om\n                    WHERE om.organization_id = p.organization_id\n                    AND om.user_id = $2\n                )\n            )\n        )\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "exists",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "10215d360abc2147c81c6fac0bb226b1093c5ee7dd2abce8f9713bca7b4b0c0d"
+}
