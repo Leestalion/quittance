@@ -1,24 +1,40 @@
 <script setup lang="ts">
-import { onMounted, computed } from 'vue'
+import { onMounted, computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { usePropertiesStore } from '../stores/properties'
+import { leasesAPI } from '../api'
+import type { Lease } from '../types'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const propertiesStore = usePropertiesStore()
+const leases = ref<Lease[]>([])
 
-const stats = computed(() => ({
-  totalProperties: propertiesStore.properties.length,
-  // Remove status-based filtering until we have lease data
-  // These will be implemented when we add a proper API endpoint
-  // that returns properties with their active lease status
-  activeLeases: 0, // TODO: implement with lease data
-  availableProperties: 0 // TODO: implement with lease data
-}))
+const stats = computed(() => {
+  const activeLeases = leases.value.filter(l => l.status === 'active').length
+  const propertiesWithActiveLeases = new Set(
+    leases.value.filter(l => l.status === 'active').map(l => l.property_id)
+  ).size
+  
+  return {
+    totalProperties: propertiesStore.properties.length,
+    activeLeases,
+    availableProperties: propertiesStore.properties.length - propertiesWithActiveLeases
+  }
+})
+
+async function loadData() {
+  await propertiesStore.fetchProperties()
+  try {
+    leases.value = await leasesAPI.list()
+  } catch (err) {
+    console.error('Failed to load leases:', err)
+  }
+}
 
 onMounted(() => {
-  propertiesStore.fetchProperties()
+  loadData()
 })
 </script>
 

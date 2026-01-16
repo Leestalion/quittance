@@ -1,4 +1,5 @@
-use chrono::{DateTime, NaiveDate, Utc};
+use bigdecimal::BigDecimal;
+use chrono::{NaiveDate, NaiveDateTime};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
@@ -10,15 +11,15 @@ pub struct Receipt {
     pub lease_id: Uuid,
     pub period_month: i32,
     pub period_year: i32,
-    pub base_rent: f64,
-    pub charges: f64,
-    pub total_amount: f64,
+    pub base_rent: BigDecimal,
+    pub charges: BigDecimal,
+    pub total_amount: BigDecimal,
     pub payment_date: NaiveDate,
     pub status: String,
-    pub email_sent_at: Option<DateTime<Utc>>,
+    pub email_sent_at: Option<NaiveDateTime>,
     pub pdf_path: Option<String>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub created_at: Option<NaiveDateTime>,
+    pub updated_at: Option<NaiveDateTime>,
 }
 
 #[allow(dead_code)]
@@ -27,8 +28,8 @@ pub struct CreateReceipt {
     pub lease_id: Uuid,
     pub period_month: i32,
     pub period_year: i32,
-    pub base_rent: f64,
-    pub charges: f64,
+    pub base_rent: BigDecimal,
+    pub charges: BigDecimal,
     pub payment_date: NaiveDate,
 }
 

@@ -1,0 +1,106 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, property_id, tenant_id, start_date, end_date, duration_months, monthly_rent, charges, deposit, rent_revision, inventory_date, status, pdf_path, created_at, updated_at\n         FROM leases\n         WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "property_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "tenant_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "start_date",
+        "type_info": "Date"
+      },
+      {
+        "ordinal": 4,
+        "name": "end_date",
+        "type_info": "Date"
+      },
+      {
+        "ordinal": 5,
+        "name": "duration_months",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 6,
+        "name": "monthly_rent",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 7,
+        "name": "charges",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 8,
+        "name": "deposit",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 9,
+        "name": "rent_revision",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 10,
+        "name": "inventory_date",
+        "type_info": "Date"
+      },
+      {
+        "ordinal": 11,
+        "name": "status",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 12,
+        "name": "pdf_path",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 13,
+        "name": "created_at",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 14,
+        "name": "updated_at",
+        "type_info": "Timestamp"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "070fa83863f0a4585df90a6b401d1267ee4a328a208f555a04e5992fb44023fa"
+}

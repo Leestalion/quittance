@@ -43,13 +43,30 @@ export const usePropertiesStore = defineStore('properties', () => {
     properties.value = properties.value.filter(p => p.id !== id)
   }
 
+  async function fetchProperty(id: string) {
+    const property = await propertiesAPI.get(id)
+    const index = properties.value.findIndex(p => p.id === id)
+    if (index !== -1) {
+      properties.value[index] = property
+    } else {
+      properties.value.push(property)
+    }
+    return property
+  }
+
+  function getPropertyById(id: string) {
+    return properties.value.find(p => p.id === id)
+  }
+
   return {
     properties,
     loading,
     error,
     fetchProperties,
+    fetchProperty,
     createProperty,
     updateProperty,
-    deleteProperty
+    deleteProperty,
+    getPropertyById
   }
 })

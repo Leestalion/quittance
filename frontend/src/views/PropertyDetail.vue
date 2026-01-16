@@ -16,6 +16,7 @@ const receiptsStore = useReceiptsStore()
 const property = ref<Property | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
+const showReceiptsDropdown = ref(false)
 
 const activeTab = ref<'info' | 'leases' | 'receipts'>('info')
 
@@ -24,9 +25,21 @@ const leases = computed(() => {
   return leasesStore.getLeasesByProperty(propertyId)
 })
 
+const activeLeases = computed(() => {
+  const propertyId = route.params.id as string
+  return leasesStore.getLeasesByProperty(propertyId).filter(l => l.status === 'active')
+})
+
 const activeLease = computed(() => {
   const propertyId = route.params.id as string
   return leasesStore.getActiveLease(propertyId)
+})
+
+const occupancyInfo = computed(() => {
+  const current = activeLeases.value.length
+  const max = property.value?.max_occupants || 1
+  const isFull = current >= max
+  return { current, max, isFull }
 })
 
 const currentTenant = computed(() => {
@@ -35,8 +48,29 @@ const currentTenant = computed(() => {
 })
 
 const receipts = computed(() => {
-  if (!activeLease.value) return []
-  return receiptsStore.getReceiptsByLease(activeLease.value.id)
+  // Get all receipts for all leases of this property
+  const allReceipts: any[] = []
+  leases.value.forEach(lease => {
+    const leaseReceipts = receiptsStore.getReceiptsByLease(lease.id)
+    leaseReceipts.forEach(receipt => {
+      allReceipts.push({
+        ...receipt,
+        lease,
+        tenant: tenantsStore.getTenantById(lease.tenant_id)
+      })
+    })
+  })
+  return allReceipts.sort((a, b) => {
+    if (a.period_year !== b.period_year) return b.period_year - a.period_year
+    return b.period_month - a.period_month
+  })
+})
+
+const activeLeasesWithTenants = computed(() => {
+  return activeLeases.value.map(lease => ({
+    lease,
+    tenant: tenantsStore.getTenantById(lease.tenant_id)
+  }))
 })
 
 onMounted(async () => {
@@ -57,10 +91,10 @@ onMounted(async () => {
     // Fetch leases for this property
     await leasesStore.fetchLeases(propertyId)
     
-    // Get tenant for active lease
-    if (activeLease.value) {
-      await tenantsStore.fetchTenant(activeLease.value.tenant_id)
-      await receiptsStore.fetchReceipts(activeLease.value.id)
+    // Load all tenants and receipts for all leases
+    for (const lease of leases.value) {
+      await tenantsStore.fetchTenant(lease.tenant_id)
+      await receiptsStore.fetchReceipts(lease.id)
     }
   } catch (err: any) {
     error.value = err.message || 'Erreur lors du chargement des données'
@@ -75,6 +109,23 @@ async function sendReceipt(receiptId: string) {
     alert('Quittance envoyée par email!')
   } catch (err: any) {
     alert(err.message || 'Erreur lors de l\'envoi de l\'email')
+  }
+}
+
+async function deleteLease(leaseId: string) {
+  if (!confirm('Êtes-vous sûr de vouloir supprimer ce bail ? Toutes les quittances associées seront également supprimées.')) {
+    return
+  }
+
+  try {
+    await leasesStore.deleteLease(leaseId)
+    // Refresh property data
+    const propertyId = route.params.id as string
+    await leasesStore.fetchLeases(propertyId)
+    await receiptsStore.fetchReceipts(activeLease.value?.id || '')
+    alert('Bail supprimé avec succès')
+  } catch (err: any) {
+    alert(err.message || 'Erreur lors de la suppression du bail')
   }
 }
 </script>
@@ -98,8 +149,40 @@ async function sendReceipt(receiptId: string) {
           <span v-if="property.rooms">· {{ property.rooms }} pièce(s)</span>
         </p>
       </div>
-      <div class="status-badge" :class="activeLease ? 'occupied' : 'available'">
-        {{ activeLease ? 'Occupé' : 'Disponible' }}
+      <div class="header-actions">
+        <div class="occupancy-info">
+          <div class="status-badge" :class="occupancyInfo.isFull ? 'occupied' : 'available'">
+            {{ occupancyInfo.isFull ? 'Complet' : 'Disponible' }}
+          </div>
+          <p class="occupancy-count">
+            {{ occupancyInfo.current }} / {{ occupancyInfo.max }} occupant(s)
+          </p>
+        </div>
+        <button 
+          v-if="!occupancyInfo.isFull" 
+          @click="$router.push(`/properties/${property.id}/lease/new`)"
+          class="btn-create-lease"
+        >
+          📋 Créer un bail
+        </button>
+        <div v-if="activeLeases.length > 0" class="receipts-dropdown">
+          <button 
+            @click="showReceiptsDropdown = !showReceiptsDropdown" 
+            class="btn-create-receipt"
+          >
+            📄 Générer une quittance ▾
+          </button>
+          <div v-show="showReceiptsDropdown" class="dropdown-menu">
+            <button 
+              v-for="item in activeLeasesWithTenants" 
+              :key="item.lease.id"
+              @click="$router.push(`/properties/${property.id}/receipt/new/${item.lease.id}`); showReceiptsDropdown = false"
+              class="dropdown-item"
+            >
+              {{ item.tenant?.name || 'Locataire inconnu' }}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -119,7 +202,7 @@ async function sendReceipt(receiptId: string) {
     <!-- Tab Content -->
     <div class="tab-content">
       <!-- Info Tab -->
-      <div v-if="activeTab === 'info'" class="info-section">
+      <div v-if="activeTab === 'info' && property" class="info-section">
         <div class="info-card">
           <h2>Détails de la propriété</h2>
           <div class="info-grid">
@@ -154,17 +237,45 @@ async function sendReceipt(receiptId: string) {
       </div>
 
       <!-- Leases Tab -->
-      <div v-if="activeTab === 'leases'" class="leases-section">
+      <div v-if="activeTab === 'leases' && property" class="leases-section">
         <div v-if="leases.length === 0" class="empty">Aucun bail enregistré</div>
         <div v-else class="leases-list">
           <div v-for="lease in leases" :key="lease.id" class="lease-item">
             <div class="lease-info">
-              <h3>{{ new Date(lease.start_date).toLocaleDateString() }} - 
-                {{ lease.end_date ? new Date(lease.end_date).toLocaleDateString() : 'En cours' }}
+              <h3>
+                {{ tenantsStore.getTenantById(lease.tenant_id)?.name || 'Locataire inconnu' }}
               </h3>
+              <p>
+                {{ new Date(lease.start_date).toLocaleDateString() }} - 
+                {{ lease.end_date ? new Date(lease.end_date).toLocaleDateString() : 'En cours' }}
+              </p>
               <p>Loyer: {{ lease.monthly_rent }} € + Charges: {{ lease.charges }} €</p>
             </div>
-            <span class="lease-status" :class="lease.status">{{ lease.status }}</span>
+            <div class="lease-actions">
+              <span class="lease-status" :class="lease.status">{{ lease.status }}</span>
+              <button 
+                v-if="lease.status === 'active'"
+                @click="$router.push(`/properties/${property.id}/receipt/new/${lease.id}`)"
+                class="action-btn"
+                title="Générer une quittance"
+              >
+                📄 Quittance
+              </button>
+              <button 
+                @click="$router.push(`/properties/${property.id}/lease/${lease.id}/print`)"
+                class="action-btn"
+                title="Voir et imprimer le bail"
+              >
+                🖨️ Imprimer
+              </button>
+              <button 
+                @click="deleteLease(lease.id)"
+                class="action-btn delete-btn"
+                title="Supprimer ce bail"
+              >
+                🗑️ Supprimer
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -175,6 +286,7 @@ async function sendReceipt(receiptId: string) {
         <table v-else class="receipts-table">
           <thead>
             <tr>
+              <th>Locataire</th>
               <th>Période</th>
               <th>Loyer</th>
               <th>Charges</th>
@@ -185,6 +297,7 @@ async function sendReceipt(receiptId: string) {
           </thead>
           <tbody>
             <tr v-for="receipt in receipts" :key="receipt.id">
+              <td>{{ receipt.tenant?.name || 'Inconnu' }}</td>
               <td>{{ receipt.period_month }}/{{ receipt.period_year }}</td>
               <td>{{ receipt.base_rent }} €</td>
               <td>{{ receipt.charges }} €</td>
@@ -219,6 +332,7 @@ async function sendReceipt(receiptId: string) {
   justify-content: space-between;
   align-items: start;
   margin-bottom: 2rem;
+  gap: 2rem;
 }
 
 .property-header h1 {
@@ -230,11 +344,90 @@ async function sendReceipt(receiptId: string) {
   margin: 0;
 }
 
+.header-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.occupancy-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.occupancy-count {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.btn-create-lease,
+.btn-create-receipt {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: transform 0.2s;
+}
+
+.btn-create-lease:hover,
+.btn-create-receipt:hover {
+  transform: translateY(-2px);
+}
+
+.receipts-dropdown {
+  position: relative;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.5rem;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 200px;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.95rem;
+  color: #333;
+  transition: background 0.2s;
+}
+
+.dropdown-item:hover {
+  background: #f5f5f5;
+}
+
+.dropdown-item:not(:last-child) {
+  border-bottom: 1px solid #eee;
+}
+
 .status-badge {
   padding: 0.5rem 1rem;
   border-radius: 20px;
   font-weight: 600;
   font-size: 0.9rem;
+  white-space: nowrap;
 }
 
 .status-badge.occupied {
@@ -316,6 +509,12 @@ async function sendReceipt(receiptId: string) {
   border-bottom: none;
 }
 
+.lease-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
 .lease-status {
   padding: 0.5rem 1rem;
   border-radius: 20px;
@@ -326,6 +525,70 @@ async function sendReceipt(receiptId: string) {
 .lease-status.active {
   background: #e3f2fd;
   color: #1976d2;
+}
+
+.lease-status.expired,
+.lease-status.terminated {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.action-btn {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.action-btn:hover {
+  background: #5568d3;
+}
+
+.action-btn.delete-btn {
+  background: #fff;
+  color: #d32f2f;
+  border: 1px solid #d32f2f;
+}
+
+.action-btn.delete-btn:hover {
+  background: #d32f2f;
+  color: white;
+}
+
+.print-btn {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.print-btn:hover {
+  background: #5568d3;
+}
+
+.delete-btn {
+  background: #fff;
+  color: #d32f2f;
+  border: 1px solid #d32f2f;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.delete-btn:hover {
+  background: #d32f2f;
+  color: white;
 }
 
 .receipts-table {

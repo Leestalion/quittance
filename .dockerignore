@@ -1,0 +1,28 @@
+# Backend
+backend/target
+backend/.env
+backend/.cargo
+
+# Frontend
+frontend/node_modules
+frontend/dist
+frontend/.env
+frontend/.vite
+
+# Git
+.git
+.gitignore
+
+# Documentation
+*.md
+!README.md
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo

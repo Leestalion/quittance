@@ -363,45 +363,45 @@ function exportPDF() {
 .lease-actions {
   display: flex;
   gap: 1rem;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
 }
 
 .back-btn,
 .print-btn,
 .pdf-btn {
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  transition: transform 0.2s;
 }
 
 .back-btn {
-  background: #333;
-  color: white;
-  border: 1px solid #444;
+  background: #f5f5f5;
+  color: #333;
 }
 
 .back-btn:hover {
-  background: #444;
+  background: #e0e0e0;
+  transform: translateY(-2px);
 }
 
 .pdf-btn {
-  background: #16a34a;
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
   color: white;
-  border: none;
-}
-
-.pdf-btn:hover {
-  background: #15803d;
 }
 
 .print-btn {
-  background: #646cff;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  border: none;
 }
 
 .print-btn:hover {
+  transform: translateY(-2px);
+  border: none;
   background: #535bf2;
 }
 

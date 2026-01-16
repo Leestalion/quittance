@@ -1,12 +1,24 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useTenantsStore } from '../stores/tenants'
-import type { CreateTenant } from '../types'
+import type { CreateTenant, Tenant } from '../types'
 
 const tenantsStore = useTenantsStore()
 const showCreateModal = ref(false)
+const showEditModal = ref(false)
+const editingTenant = ref<Tenant | null>(null)
 
 const newTenant = ref<CreateTenant>({
+  name: '',
+  email: '',
+  phone: '',
+  address: '',
+  birth_date: '',
+  birth_place: '',
+  notes: ''
+})
+
+const editTenant = ref<CreateTenant>({
   name: '',
   email: '',
   phone: '',
@@ -31,6 +43,31 @@ async function handleCreate() {
     resetForm()
   } catch (err: any) {
     alert(err.message || 'Erreur lors de la création du locataire')
+  }
+}
+
+function openEditModal(tenant: Tenant) {
+  editingTenant.value = tenant
+  editTenant.value = {
+    name: tenant.name,
+    email: tenant.email || '',
+    phone: tenant.phone || '',
+    address: tenant.address || '',
+    birth_date: tenant.birth_date || '',
+    birth_place: tenant.birth_place || '',
+    notes: tenant.notes || ''
+  }
+  showEditModal.value = true
+}
+
+async function handleUpdate() {
+  if (!editingTenant.value) return
+  try {
+    await tenantsStore.updateTenant(editingTenant.value.id, editTenant.value)
+    showEditModal.value = false
+    editingTenant.value = null
+  } catch (err: any) {
+    alert(err.message || 'Erreur lors de la modification du locataire')
   }
 }
 
@@ -68,7 +105,10 @@ function resetForm() {
 
     <div v-else class="tenants-grid">
       <div v-for="tenant in tenantsStore.tenants" :key="tenant.id" class="tenant-card">
-        <h3>{{ tenant.name }}</h3>
+        <div class="tenant-card-header">
+          <h3>{{ tenant.name }}</h3>
+          <button @click="openEditModal(tenant)" class="edit-btn" title="Modifier">✏️</button>
+        </div>
         <div class="tenant-details">
           <div v-if="tenant.email">📧 {{ tenant.email }}</div>
           <div v-if="tenant.phone">📱 {{ tenant.phone }}</div>
@@ -129,6 +169,58 @@ function resetForm() {
         </form>
       </div>
     </div>
+
+    <!-- Edit Modal -->
+    <div v-if="showEditModal" class="modal-overlay" @click="showEditModal = false; editingTenant = null">
+      <div class="modal" @click.stop>
+        <h2>Modifier le locataire</h2>
+        <form @submit.prevent="handleUpdate">
+          <div class="form-group">
+            <label>Nom complet *</label>
+            <input v-model="editTenant.name" required />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Email</label>
+              <input v-model="editTenant.email" type="email" />
+            </div>
+
+            <div class="form-group">
+              <label>Téléphone</label>
+              <input v-model="editTenant.phone" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Adresse</label>
+            <textarea v-model="editTenant.address" rows="2" />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Date de naissance</label>
+              <input v-model="editTenant.birth_date" type="date" />
+            </div>
+
+            <div class="form-group">
+              <label>Lieu de naissance</label>
+              <input v-model="editTenant.birth_place" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Notes</label>
+            <textarea v-model="editTenant.notes" rows="3" />
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" @click="showEditModal = false; editingTenant = null">Annuler</button>
+            <button type="submit" class="primary">Enregistrer</button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -167,8 +259,36 @@ function resetForm() {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
+.tenant-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.tenant-card-header h3 {
+  margin: 0;
+  flex: 1;
+}
+
 .tenant-card h3 {
   margin: 0 0 1rem;
+}
+
+.edit-btn {
+  background: #f0f0f0;
+  border: none;
+  padding: 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.edit-btn:hover {
+  background: #e0e0e0;
 }
 
 .tenant-details {
@@ -248,56 +368,106 @@ function resetForm() {
 
 .modal {
   background: white;
-  padding: 2rem;
+  padding: 2.5rem;
   border-radius: 16px;
   max-width: 600px;
   width: 90%;
   max-height: 90vh;
   overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.modal h2 {
+  margin: 0 0 2rem;
+  color: #1a1a1a;
+  font-size: 1.75rem;
 }
 
 .form-group {
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1rem;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.form-row .form-group {
+  margin-bottom: 0;
 }
 
 label {
   display: block;
   margin-bottom: 0.5rem;
-  font-weight: 500;
+  font-weight: 600;
+  color: #1a1a1a;
+  font-size: 0.95rem;
 }
 
 input,
 textarea {
   width: 100%;
-  padding: 0.75rem;
+  padding: 0.875rem;
   border: 2px solid #e0e0e0;
   border-radius: 8px;
   font-family: inherit;
+  font-size: 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background: white;
+  box-sizing: border-box;
+}
+
+input:focus,
+textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+textarea {
+  resize: vertical;
+  min-height: 60px;
 }
 
 .modal-actions {
   display: flex;
   gap: 1rem;
   justify-content: flex-end;
-  margin-top: 1.5rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e0e0e0;
 }
 
 .modal-actions button {
-  padding: 0.75rem 1.5rem;
+  padding: 0.875rem 2rem;
   border-radius: 8px;
   border: none;
   cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.modal-actions button:not(.primary) {
+  background: #f5f5f5;
+  color: #666;
+}
+
+.modal-actions button:not(.primary):hover {
+  background: #e0e0e0;
 }
 
 .modal-actions button.primary {
-  background: #667eea;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.modal-actions button.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -305,6 +475,11 @@ textarea {
   .modal,
   .empty-state {
     background: #1a1a1a;
+  }
+
+  .modal h2,
+  .modal label {
+    color: #e0e0e0;
   }
 
   .notes {

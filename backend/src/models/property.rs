@@ -13,6 +13,7 @@ pub struct Property {
     pub furnished: bool,
     pub surface_area: Option<BigDecimal>,
     pub rooms: Option<i32>,
+    pub max_occupants: i32,
     pub description: Option<String>,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
@@ -25,6 +26,7 @@ pub struct CreateProperty {
     pub furnished: bool,
     pub surface_area: Option<BigDecimal>,
     pub rooms: Option<i32>,
+    pub max_occupants: i32,
     pub description: Option<String>,
 }
 
@@ -36,5 +38,6 @@ pub struct UpdateProperty {
     pub furnished: Option<bool>,
     pub surface_area: Option<BigDecimal>,
     pub rooms: Option<i32>,
+    pub max_occupants: Option<i32>,
     pub description: Option<String>,
 }

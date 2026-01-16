@@ -37,6 +37,24 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/properties/:propertyId/lease/new',
+      name: 'GenerateLease',
+      component: () => import('../views/GenerateLease.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/properties/:propertyId/lease/:leaseId/print',
+      name: 'PrintLease',
+      component: () => import('../views/PrintLease.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/properties/:propertyId/receipt/new/:leaseId',
+      name: 'GenerateReceipt',
+      component: () => import('../views/GenerateReceipt.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/tenants',
       name: 'Tenants',
       component: () => import('../views/TenantList.vue'),
@@ -57,8 +75,20 @@ const router = createRouter({
 })
 
 // Navigation guard for authentication
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to, _from, next) => {
   const authStore = useAuthStore()
+  
+  // Load user data if authenticated but user not loaded
+  if (authStore.isAuthenticated && !authStore.user && to.name !== 'Login' && to.name !== 'Register') {
+    try {
+      await authStore.fetchCurrentUser()
+    } catch (error) {
+      console.error('Failed to fetch user:', error)
+      authStore.logout()
+      next('/login')
+      return
+    }
+  }
   
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next('/login')

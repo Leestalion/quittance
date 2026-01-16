@@ -48,11 +48,15 @@ async fn main() {
         .nest("/receipts", routes::receipts::router())
         .with_state(database);
 
+    // Determine frontend path (different in dev vs production)
+    let frontend_path = std::env::var("FRONTEND_PATH")
+        .unwrap_or_else(|_| "../frontend/dist".to_string());
+
     // Main application router
     let app = Router::new()
         .nest("/api", api_router)
-        // Serve frontend static files (from Vite build)
-        .nest_service("/", ServeDir::new("../frontend/dist"))
+        // Serve frontend static files with SPA fallback
+        .fallback_service(ServeDir::new(&frontend_path))
         .layer(
             CorsLayer::new()
                 .allow_origin(Any)

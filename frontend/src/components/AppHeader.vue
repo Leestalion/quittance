@@ -160,4 +160,10 @@ function handleLogout() {
     font-size: 0.8rem;
   }
 }
+
+@media print {
+  .app-header {
+    display: none !important;
+  }
+}
 </style>

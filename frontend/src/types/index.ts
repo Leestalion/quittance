@@ -19,6 +19,7 @@ export interface Property {
   furnished: boolean
   surface_area?: number
   rooms?: number
+  max_occupants: number
   description?: string
   created_at: string
   updated_at: string
@@ -79,6 +80,7 @@ export interface CreateProperty {
   furnished: boolean
   surface_area?: number
   rooms?: number
+  max_occupants: number
   description?: string
 }
 

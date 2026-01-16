@@ -96,6 +96,10 @@ export const useLeasesStore = defineStore('leases', () => {
     return leases.value.filter(l => l.property_id === propertyId)
   }
 
+  function getLeaseById(id: string): Lease | undefined {
+    return leases.value.find(l => l.id === id)
+  }
+
   return {
     leases,
     loading,
@@ -106,6 +110,7 @@ export const useLeasesStore = defineStore('leases', () => {
     updateLease,
     deleteLease,
     getActiveLease,
-    getLeasesByProperty
+    getLeasesByProperty,
+    getLeaseById
   }
 })

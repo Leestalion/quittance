@@ -1,0 +1,106 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT l.id, l.property_id, l.tenant_id, l.start_date, l.end_date, l.duration_months, l.monthly_rent, l.charges, l.deposit, l.rent_revision, l.inventory_date, l.status, l.pdf_path, l.created_at, l.updated_at\n             FROM leases l\n             JOIN properties p ON l.property_id = p.id\n             WHERE p.user_id = $1\n             ORDER BY l.start_date DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "property_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "tenant_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "start_date",
+        "type_info": "Date"
+      },
+      {
+        "ordinal": 4,
+        "name": "end_date",
+        "type_info": "Date"
+      },
+      {
+        "ordinal": 5,
+        "name": "duration_months",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 6,
+        "name": "monthly_rent",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 7,
+        "name": "charges",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 8,
+        "name": "deposit",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 9,
+        "name": "rent_revision",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 10,
+        "name": "inventory_date",
+        "type_info": "Date"
+      },
+      {
+        "ordinal": 11,
+        "name": "status",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 12,
+        "name": "pdf_path",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 13,
+        "name": "created_at",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 14,
+        "name": "updated_at",
+        "type_info": "Timestamp"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "aada1b726c7ac0588273d96df079cc6b8a90e14a084b3abd51140f676e51c207"
+}
