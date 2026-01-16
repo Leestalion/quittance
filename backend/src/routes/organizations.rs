@@ -1,6 +1,6 @@
 use axum::{
     extract::{Path, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     routing::{delete, get, post},
     Json, Router,
 };
@@ -12,6 +12,7 @@ use crate::models::organization::{
     AddOrganizationMember, CreateOrganization, Organization, OrganizationMember,
     OrganizationMemberWithUser, OrganizationWithMembers, UpdateOrganization,
 };
+use crate::routes::auth::extract_user_id_from_headers;
 
 pub fn router() -> Router<Database> {
     Router::new()
@@ -29,8 +30,14 @@ pub fn router() -> Router<Database> {
 // Create a new organization (SCI)
 async fn create_organization(
     State(db): State<Database>,
+    headers: HeaderMap,
     Json(payload): Json<CreateOrganization>,
 ) -> Result<Json<Organization>, AppError> {
+    let user_id = extract_user_id_from_headers(&headers)?;
+    
+    // Use a transaction to ensure organization and membership are created atomically
+    let mut tx = db.pool.begin().await?;
+    
     let org = sqlx::query_as::<_, Organization>(
         r#"
         INSERT INTO organizations (name, legal_form, siret, address, phone, email)
@@ -44,8 +51,22 @@ async fn create_organization(
     .bind(&payload.address)
     .bind(&payload.phone)
     .bind(&payload.email)
-    .fetch_one(&db.pool)
+    .fetch_one(&mut *tx)
     .await?;
+
+    // Automatically add the creator as an owner
+    sqlx::query(
+        r#"
+        INSERT INTO organization_members (organization_id, user_id, role, share_percentage)
+        VALUES ($1, $2, 'owner', NULL)
+        "#,
+    )
+    .bind(org.id)
+    .bind(user_id)
+    .execute(&mut *tx)
+    .await?;
+    
+    tx.commit().await?;
 
     Ok(Json(org))
 }

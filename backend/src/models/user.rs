@@ -1,4 +1,4 @@
-use chrono::{NaiveDate, NaiveDateTime};
+use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
@@ -14,6 +14,6 @@ pub struct User {
     pub phone: Option<String>,
     pub birth_date: Option<NaiveDate>,
     pub birth_place: Option<String>,
-    pub created_at: Option<NaiveDateTime>,
-    pub updated_at: Option<NaiveDateTime>,
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
 }

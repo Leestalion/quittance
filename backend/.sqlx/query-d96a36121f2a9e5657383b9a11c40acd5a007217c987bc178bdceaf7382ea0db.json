@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, user_id, address, property_type, furnished, surface_area, rooms, max_occupants, description, created_at, updated_at \n         FROM properties \n         WHERE id = $1",
+  "query": "\n        UPDATE properties\n        SET address = $1, property_type = $2, furnished = $3, surface_area = $4, rooms = $5, max_occupants = $6, description = $7, updated_at = CURRENT_TIMESTAMP\n        WHERE id = $8\n        RETURNING id, user_id, organization_id, address, property_type, furnished, surface_area, rooms, max_occupants, description, created_at, updated_at\n        ",
   "describe": {
     "columns": [
       {
@@ -15,58 +15,71 @@
       },
       {
         "ordinal": 2,
+        "name": "organization_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
         "name": "address",
         "type_info": "Text"
       },
       {
-        "ordinal": 3,
+        "ordinal": 4,
         "name": "property_type",
         "type_info": "Varchar"
       },
       {
-        "ordinal": 4,
+        "ordinal": 5,
         "name": "furnished",
         "type_info": "Bool"
       },
       {
-        "ordinal": 5,
+        "ordinal": 6,
         "name": "surface_area",
         "type_info": "Numeric"
       },
       {
-        "ordinal": 6,
+        "ordinal": 7,
         "name": "rooms",
         "type_info": "Int4"
       },
       {
-        "ordinal": 7,
+        "ordinal": 8,
         "name": "max_occupants",
         "type_info": "Int4"
       },
       {
-        "ordinal": 8,
+        "ordinal": 9,
         "name": "description",
         "type_info": "Text"
       },
       {
-        "ordinal": 9,
+        "ordinal": 10,
         "name": "created_at",
-        "type_info": "Timestamp"
+        "type_info": "Timestamptz"
       },
       {
-        "ordinal": 10,
+        "ordinal": 11,
         "name": "updated_at",
-        "type_info": "Timestamp"
+        "type_info": "Timestamptz"
       }
     ],
     "parameters": {
       "Left": [
+        "Text",
+        "Varchar",
+        "Bool",
+        "Numeric",
+        "Int4",
+        "Int4",
+        "Text",
         "Uuid"
       ]
     },
     "nullable": [
       false,
-      false,
+      true,
+      true,
       false,
       false,
       false,
@@ -78,5 +91,5 @@
       true
     ]
   },
-  "hash": "75f6b2683bf2b75b78110c1327b7171d1f664e3121248187b61df61edd38c189"
+  "hash": "d96a36121f2a9e5657383b9a11c40acd5a007217c987bc178bdceaf7382ea0db"
 }

@@ -61,6 +61,18 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/organizations',
+      name: 'Organizations',
+      component: () => import('../views/OrganizationList.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/organizations/:id',
+      name: 'OrganizationDetail',
+      component: () => import('../views/OrganizationDetail.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/profile',
       name: 'Profile',
       component: () => import('../views/Profile.vue'),

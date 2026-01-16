@@ -1,4 +1,4 @@
-use axum::{Router, routing::get, extract::{State, Path}, Json, http::{StatusCode, HeaderMap}};
+use axum::{Router, routing::get, extract::{State, Path, Extension}, Json, http::{StatusCode, HeaderMap}};
 use uuid::Uuid;
 use crate::{
     db::Database,
@@ -10,7 +10,7 @@ use crate::{
 pub fn router() -> Router<Database> {
     Router::new()
         .route("/", get(list_tenants).post(create_tenant))
-        .route("/:id", get(get_tenant).put(update_tenant))
+        .route("/:id", get(get_tenant).put(update_tenant).delete(delete_tenant))
 }
 
 async fn list_tenants(
@@ -119,4 +119,30 @@ async fn update_tenant(
     .await?;
 
     Ok(Json(tenant))
+}
+
+pub async fn delete_tenant(
+    State(db): State<Database>,
+    Extension(user_id): Extension<Uuid>,
+    Path(id): Path<Uuid>,
+) -> Result<Json<()>, AppError> {
+    // Verify the tenant belongs to the user
+    let exists = sqlx::query_scalar!(
+        r#"SELECT EXISTS(SELECT 1 FROM tenants WHERE id = $1 AND user_id = $2) as "exists!""#,
+        id,
+        user_id
+    )
+    .fetch_one(&db.pool)
+    .await?;
+
+    if !exists {
+        return Err(AppError::NotFound(format!("Tenant with id {} not found", id)));
+    }
+
+    // Delete the tenant (will cascade to leases and receipts)
+    sqlx::query!("DELETE FROM tenants WHERE id = $1", id)
+        .execute(&db.pool)
+        .await?;
+
+    Ok(Json(()))
 }

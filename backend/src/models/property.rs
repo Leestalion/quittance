@@ -1,5 +1,5 @@
 use bigdecimal::BigDecimal;
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
@@ -16,8 +16,8 @@ pub struct Property {
     pub rooms: Option<i32>,
     pub max_occupants: i32,
     pub description: Option<String>,
-    pub created_at: Option<NaiveDateTime>,
-    pub updated_at: Option<NaiveDateTime>,
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Deserialize)]

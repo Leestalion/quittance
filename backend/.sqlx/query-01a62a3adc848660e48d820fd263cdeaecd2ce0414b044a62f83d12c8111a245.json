@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, user_id, address, property_type, furnished, surface_area, rooms, max_occupants, description, created_at, updated_at \n         FROM properties\n         WHERE user_id = $1\n         ORDER BY created_at DESC",
+  "query": "SELECT id, user_id, organization_id, address, property_type, furnished, surface_area, rooms, max_occupants, description, created_at, updated_at \n         FROM properties\n         WHERE user_id = $1\n         ORDER BY created_at DESC",
   "describe": {
     "columns": [
       {
@@ -15,48 +15,53 @@
       },
       {
         "ordinal": 2,
+        "name": "organization_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
         "name": "address",
         "type_info": "Text"
       },
       {
-        "ordinal": 3,
+        "ordinal": 4,
         "name": "property_type",
         "type_info": "Varchar"
       },
       {
-        "ordinal": 4,
+        "ordinal": 5,
         "name": "furnished",
         "type_info": "Bool"
       },
       {
-        "ordinal": 5,
+        "ordinal": 6,
         "name": "surface_area",
         "type_info": "Numeric"
       },
       {
-        "ordinal": 6,
+        "ordinal": 7,
         "name": "rooms",
         "type_info": "Int4"
       },
       {
-        "ordinal": 7,
+        "ordinal": 8,
         "name": "max_occupants",
         "type_info": "Int4"
       },
       {
-        "ordinal": 8,
+        "ordinal": 9,
         "name": "description",
         "type_info": "Text"
       },
       {
-        "ordinal": 9,
+        "ordinal": 10,
         "name": "created_at",
-        "type_info": "Timestamp"
+        "type_info": "Timestamptz"
       },
       {
-        "ordinal": 10,
+        "ordinal": 11,
         "name": "updated_at",
-        "type_info": "Timestamp"
+        "type_info": "Timestamptz"
       }
     ],
     "parameters": {
@@ -66,7 +71,8 @@
     },
     "nullable": [
       false,
-      false,
+      true,
+      true,
       false,
       false,
       false,
@@ -78,5 +84,5 @@
       true
     ]
   },
-  "hash": "6bfe8ba075dec642bda6be44467d121c73937774cab89c1244c4b30acf008833"
+  "hash": "01a62a3adc848660e48d820fd263cdeaecd2ce0414b044a62f83d12c8111a245"
 }

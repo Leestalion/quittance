@@ -11,6 +11,8 @@ import type {
   CreateReceipt
 } from '../types'
 
+export { organizationsApi } from './organizations'
+
 // Auth API
 export const authAPI = {
   async login(email: string, password: string) {

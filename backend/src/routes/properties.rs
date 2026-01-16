@@ -16,7 +16,7 @@ use crate::{
 pub fn router() -> Router<Database> {
     Router::new()
         .route("/", get(list_properties).post(create_property))
-        .route("/:id", get(get_property).put(update_property))
+        .route("/:id", get(get_property).put(update_property).delete(delete_property))
 }
 
 async fn list_properties(
@@ -25,12 +25,18 @@ async fn list_properties(
 ) -> Result<Json<Vec<Property>>, AppError> {
     let user_id = extract_user_id_from_headers(&headers)?;
 
+    // Get properties owned directly by user OR through organization membership
     let properties = sqlx::query_as!(
         Property,
-        "SELECT id, user_id, organization_id, address, property_type, furnished, surface_area, rooms, max_occupants, description, created_at, updated_at 
-         FROM properties
-         WHERE user_id = $1
-         ORDER BY created_at DESC",
+        r#"
+        SELECT DISTINCT p.id, p.user_id, p.organization_id, p.address, p.property_type, 
+               p.furnished, p.surface_area, p.rooms, p.max_occupants, p.description, 
+               p.created_at, p.updated_at
+        FROM properties p
+        LEFT JOIN organization_members om ON p.organization_id = om.organization_id
+        WHERE p.user_id = $1 OR om.user_id = $1
+        ORDER BY p.created_at DESC
+        "#,
         user_id
     )
     .fetch_all(&db.pool)
@@ -46,6 +52,13 @@ async fn create_property(
 ) -> Result<(StatusCode, Json<Property>), AppError> {
     let user_id = extract_user_id_from_headers(&headers)?;
 
+    // Determine ownership: if organization_id is provided, user_id should be NULL
+    let (owner_user_id, owner_org_id) = if data.organization_id.is_some() {
+        (None, data.organization_id)
+    } else {
+        (Some(user_id), None)
+    };
+
     let property = sqlx::query_as!(
         Property,
         r#"
@@ -53,8 +66,8 @@ async fn create_property(
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING id, user_id, organization_id, address, property_type, furnished, surface_area, rooms, max_occupants, description, created_at, updated_at
         "#,
-        user_id,
-        data.organization_id,
+        owner_user_id,
+        owner_org_id,
         data.address,
         data.property_type,
         data.furnished,
@@ -71,14 +84,25 @@ async fn create_property(
 
 async fn get_property(
     State(db): State<Database>,
+    headers: HeaderMap,
     Path(id): Path<Uuid>,
 ) -> Result<Json<Property>, AppError> {
+    let user_id = extract_user_id_from_headers(&headers)?;
+
+    // Get property and verify user has access (either directly or through organization)
     let property = sqlx::query_as!(
         Property,
-        "SELECT id, user_id, organization_id, address, property_type, furnished, surface_area, rooms, max_occupants, description, created_at, updated_at 
-         FROM properties 
-         WHERE id = $1",
-        id
+        r#"
+        SELECT p.id, p.user_id, p.organization_id, p.address, p.property_type, 
+               p.furnished, p.surface_area, p.rooms, p.max_occupants, p.description, 
+               p.created_at, p.updated_at
+        FROM properties p
+        LEFT JOIN organization_members om ON p.organization_id = om.organization_id
+        WHERE p.id = $1 
+        AND (p.user_id = $2 OR om.user_id = $2)
+        "#,
+        id,
+        user_id
     )
     .fetch_optional(&db.pool)
     .await?
@@ -95,9 +119,22 @@ async fn update_property(
 ) -> Result<Json<Property>, AppError> {
     let user_id = extract_user_id_from_headers(&headers)?;
 
-    // Verify property belongs to user
+    // Verify property belongs to user (either directly or through organization membership)
     let exists = sqlx::query_scalar!(
-        "SELECT EXISTS(SELECT 1 FROM properties WHERE id = $1 AND user_id = $2)",
+        r#"
+        SELECT EXISTS(
+            SELECT 1 FROM properties p
+            WHERE p.id = $1 
+            AND (
+                p.user_id = $2 
+                OR EXISTS(
+                    SELECT 1 FROM organization_members om
+                    WHERE om.organization_id = p.organization_id
+                    AND om.user_id = $2
+                )
+            )
+        )
+        "#,
         id,
         user_id
     )
@@ -108,15 +145,24 @@ async fn update_property(
         return Err(AppError::NotFound(format!("Property with id {} not found", id)));
     }
 
-    // Update property
+    // Determine ownership: if organization_id is provided, user_id should be NULL
+    let (owner_user_id, owner_org_id) = if data.organization_id.is_some() {
+        (None, data.organization_id)
+    } else {
+        (Some(user_id), None)
+    };
+
+    // Update property including organization_id
     let property = sqlx::query_as!(
         Property,
         r#"
         UPDATE properties
-        SET address = $1, property_type = $2, furnished = $3, surface_area = $4, rooms = $5, max_occupants = $6, description = $7, updated_at = CURRENT_TIMESTAMP
-        WHERE id = $8
+        SET user_id = $1, organization_id = $2, address = $3, property_type = $4, furnished = $5, surface_area = $6, rooms = $7, max_occupants = $8, description = $9, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $10
         RETURNING id, user_id, organization_id, address, property_type, furnished, surface_area, rooms, max_occupants, description, created_at, updated_at
         "#,
+        owner_user_id,
+        owner_org_id,
         data.address,
         data.property_type,
         data.furnished,
@@ -130,4 +176,44 @@ async fn update_property(
     .await?;
 
     Ok(Json(property))
+}
+
+pub async fn delete_property(
+    State(db): State<Database>,
+    headers: HeaderMap,
+    Path(id): Path<Uuid>,
+) -> Result<Json<()>, AppError> {
+    let user_id = extract_user_id_from_headers(&headers)?;
+
+    // Verify the property belongs to the user OR to an organization they're part of
+    let exists = sqlx::query_scalar!(
+        r#"
+        SELECT EXISTS(
+            SELECT 1 FROM properties p
+            WHERE p.id = $1 AND (
+                p.user_id = $2
+                OR EXISTS(
+                    SELECT 1 FROM organization_members om
+                    WHERE om.organization_id = p.organization_id
+                    AND om.user_id = $2
+                )
+            )
+        )
+        "#,
+        id,
+        user_id
+    )
+    .fetch_one(&db.pool)
+    .await?;
+
+    if !exists.unwrap_or(false) {
+        return Err(AppError::NotFound(format!("Property with id {} not found", id)));
+    }
+
+    // Delete the property (will cascade to leases and receipts)
+    sqlx::query!("DELETE FROM properties WHERE id = $1", id)
+        .execute(&db.pool)
+        .await?;
+
+    Ok(Json(()))
 }

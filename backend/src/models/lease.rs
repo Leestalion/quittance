@@ -1,5 +1,5 @@
 use bigdecimal::BigDecimal;
-use chrono::{NaiveDate, NaiveDateTime};
+use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
@@ -19,8 +19,8 @@ pub struct Lease {
     pub inventory_date: Option<NaiveDate>,
     pub status: String,
     pub pdf_path: Option<String>,
-    pub created_at: Option<NaiveDateTime>,
-    pub updated_at: Option<NaiveDateTime>,
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Deserialize)]

@@ -5,6 +5,7 @@ import { useLeasesStore } from '../stores/leases'
 import { usePropertiesStore } from '../stores/properties'
 import { useTenantsStore } from '../stores/tenants'
 import { useAuthStore } from '../stores/auth'
+import { useOrganizationsStore } from '../stores/organizations'
 import LeasePreview from '../components/LeasePreview.vue'
 import type { LeaseData } from '../types'
 
@@ -14,6 +15,7 @@ const leasesStore = useLeasesStore()
 const propertiesStore = usePropertiesStore()
 const tenantsStore = useTenantsStore()
 const authStore = useAuthStore()
+const organizationsStore = useOrganizationsStore()
 
 const loading = ref(false)
 const error = ref<string | null>(null)
@@ -39,15 +41,33 @@ const selectedTenant = computed(() =>
 )
 
 const leaseData = computed<LeaseData | null>(() => {
-  if (!property.value || !selectedTenant.value || !authStore.user) return null
+  if (!property.value || !selectedTenant.value) return null
 
-  return {
-    landlord: {
+  // Determine landlord based on property ownership
+  let landlordData
+  if (property.value.organization_id && organizationsStore.currentOrganization) {
+    // Use organization as landlord
+    const org = organizationsStore.currentOrganization
+    landlordData = {
+      name: org.name,
+      address: org.address,
+      birthDate: undefined,
+      birthPlace: undefined
+    }
+  } else if (authStore.user) {
+    // Use user as landlord
+    landlordData = {
       name: authStore.user.name,
       address: authStore.user.address,
       birthDate: authStore.user.birth_date,
       birthPlace: authStore.user.birth_place
-    },
+    }
+  } else {
+    return null
+  }
+
+  return {
+    landlord: landlordData,
     tenant: {
       name: selectedTenant.value.name,
       address: selectedTenant.value.address || '',
@@ -86,6 +106,12 @@ onMounted(async () => {
 
     if (!property.value) {
       error.value = 'Propriété non trouvée'
+      return
+    }
+
+    // Fetch organization if property belongs to one
+    if (property.value.organization_id) {
+      await organizationsStore.fetchOrganizationById(property.value.organization_id)
     }
   } catch (err: any) {
     error.value = err.message || 'Erreur lors du chargement'

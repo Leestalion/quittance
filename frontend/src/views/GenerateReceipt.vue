@@ -5,6 +5,8 @@ import { useLeasesStore } from '../stores/leases'
 import { usePropertiesStore } from '../stores/properties'
 import { useTenantsStore } from '../stores/tenants'
 import { useReceiptsStore } from '../stores/receipts'
+import { useAuthStore } from '../stores/auth'
+import { useOrganizationsStore } from '../stores/organizations'
 import ReceiptPreview from '../components/ReceiptPreview.vue'
 import type { ReceiptData } from '../types'
 
@@ -14,6 +16,8 @@ const leasesStore = useLeasesStore()
 const propertiesStore = usePropertiesStore()
 const tenantsStore = useTenantsStore()
 const receiptsStore = useReceiptsStore()
+const authStore = useAuthStore()
+const organizationsStore = useOrganizationsStore()
 
 const loading = ref(true)
 const error = ref<string | null>(null)
@@ -39,11 +43,27 @@ const tenant = computed(() => {
 const receiptData = computed<ReceiptData | null>(() => {
   if (!lease.value || !property.value || !tenant.value) return null
 
+  // Determine landlord based on property ownership
+  let landlordData
+  if (property.value.organization_id && organizationsStore.currentOrganization) {
+    // Use organization as landlord
+    const org = organizationsStore.currentOrganization
+    landlordData = {
+      name: org.name,
+      address: org.address
+    }
+  } else if (authStore.user) {
+    // Use user as landlord
+    landlordData = {
+      name: authStore.user.name,
+      address: authStore.user.address
+    }
+  } else {
+    return null
+  }
+
   return {
-    landlord: {
-      name: 'Propriétaire', // TODO: Get from auth user
-      address: 'Adresse propriétaire' // TODO: Get from auth user
-    },
+    landlord: landlordData,
     tenant: {
       name: tenant.value.name
     },
@@ -66,7 +86,8 @@ onMounted(async () => {
   try {
     await Promise.all([
       leasesStore.fetchLease(leaseId.value),
-      propertiesStore.fetchProperty(propertyId.value)
+      propertiesStore.fetchProperty(propertyId.value),
+      authStore.user ? Promise.resolve() : authStore.fetchCurrentUser()
     ])
 
     if (!lease.value) {
@@ -75,6 +96,11 @@ onMounted(async () => {
     }
 
     await tenantsStore.fetchTenant(lease.value.tenant_id)
+
+    // Fetch organization if property belongs to one
+    if (property.value?.organization_id) {
+      await organizationsStore.fetchOrganizationById(property.value.organization_id)
+    }
   } catch (err: any) {
     error.value = err.message || 'Erreur lors du chargement'
   } finally {

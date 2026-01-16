@@ -82,6 +82,20 @@ function resetForm() {
     notes: ''
   }
 }
+
+async function handleDelete(tenantId: string, tenantName: string) {
+  if (!confirm(`Êtes-vous sûr de vouloir supprimer ${tenantName} ? Tous les baux et quittances associés seront également supprimés.`)) {
+    return
+  }
+
+  try {
+    await tenantsStore.deleteTenant(tenantId)
+    alert('Locataire supprimé avec succès')
+  } catch (err: any) {
+    alert(err.message || 'Erreur lors de la suppression du locataire')
+  }
+}
+
 </script>
 
 <template>
@@ -107,7 +121,10 @@ function resetForm() {
       <div v-for="tenant in tenantsStore.tenants" :key="tenant.id" class="tenant-card">
         <div class="tenant-card-header">
           <h3>{{ tenant.name }}</h3>
-          <button @click="openEditModal(tenant)" class="edit-btn" title="Modifier">✏️</button>
+          <div class="card-actions">
+            <button @click="openEditModal(tenant)" class="edit-btn" title="Modifier">✏️</button>
+            <button @click="handleDelete(tenant.id, tenant.name)" class="delete-btn" title="Supprimer">🗑️</button>
+          </div>
         </div>
         <div class="tenant-details">
           <div v-if="tenant.email">📧 {{ tenant.email }}</div>
@@ -276,7 +293,13 @@ function resetForm() {
   margin: 0 0 1rem;
 }
 
-.edit-btn {
+.card-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.edit-btn,
+.delete-btn {
   background: #f0f0f0;
   border: none;
   padding: 0.5rem;
@@ -289,6 +312,14 @@ function resetForm() {
 
 .edit-btn:hover {
   background: #e0e0e0;
+}
+
+.delete-btn {
+  background: #fee;
+}
+
+.delete-btn:hover {
+  background: #fcc;
 }
 
 .tenant-details {

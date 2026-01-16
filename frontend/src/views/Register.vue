@@ -144,6 +144,7 @@ textarea {
   font-size: 1rem;
   font-family: inherit;
   transition: border-color 0.2s;
+  box-sizing: border-box;
 }
 
 input:focus,

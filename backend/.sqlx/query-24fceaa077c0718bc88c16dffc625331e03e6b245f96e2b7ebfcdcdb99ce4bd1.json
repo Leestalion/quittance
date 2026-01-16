@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        INSERT INTO properties (user_id, address, property_type, furnished, surface_area, rooms, max_occupants, description)\n        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)\n        RETURNING id, user_id, address, property_type, furnished, surface_area, rooms, max_occupants, description, created_at, updated_at\n        ",
+  "query": "SELECT id, user_id, organization_id, address, property_type, furnished, surface_area, rooms, max_occupants, description, created_at, updated_at \n         FROM properties \n         WHERE id = $1",
   "describe": {
     "columns": [
       {
@@ -15,65 +15,64 @@
       },
       {
         "ordinal": 2,
+        "name": "organization_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
         "name": "address",
         "type_info": "Text"
       },
       {
-        "ordinal": 3,
+        "ordinal": 4,
         "name": "property_type",
         "type_info": "Varchar"
       },
       {
-        "ordinal": 4,
+        "ordinal": 5,
         "name": "furnished",
         "type_info": "Bool"
       },
       {
-        "ordinal": 5,
+        "ordinal": 6,
         "name": "surface_area",
         "type_info": "Numeric"
       },
       {
-        "ordinal": 6,
+        "ordinal": 7,
         "name": "rooms",
         "type_info": "Int4"
       },
       {
-        "ordinal": 7,
+        "ordinal": 8,
         "name": "max_occupants",
         "type_info": "Int4"
       },
       {
-        "ordinal": 8,
+        "ordinal": 9,
         "name": "description",
         "type_info": "Text"
       },
       {
-        "ordinal": 9,
+        "ordinal": 10,
         "name": "created_at",
-        "type_info": "Timestamp"
+        "type_info": "Timestamptz"
       },
       {
-        "ordinal": 10,
+        "ordinal": 11,
         "name": "updated_at",
-        "type_info": "Timestamp"
+        "type_info": "Timestamptz"
       }
     ],
     "parameters": {
       "Left": [
-        "Uuid",
-        "Text",
-        "Varchar",
-        "Bool",
-        "Numeric",
-        "Int4",
-        "Int4",
-        "Text"
+        "Uuid"
       ]
     },
     "nullable": [
       false,
-      false,
+      true,
+      true,
       false,
       false,
       false,
@@ -85,5 +84,5 @@
       true
     ]
   },
-  "hash": "b6a39757dfdeebbc75171939159d3b568e4f873b826d4a0f2d4117f1051becec"
+  "hash": "24fceaa077c0718bc88c16dffc625331e03e6b245f96e2b7ebfcdcdb99ce4bd1"
 }

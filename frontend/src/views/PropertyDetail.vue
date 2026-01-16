@@ -1,17 +1,20 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { usePropertiesStore } from '../stores/properties'
 import { useLeasesStore } from '../stores/leases'
 import { useTenantsStore } from '../stores/tenants'
 import { useReceiptsStore } from '../stores/receipts'
+import { useOrganizationsStore } from '../stores/organizations'
 import type { Property } from '../types'
 
 const route = useRoute()
+const router = useRouter()
 const propertiesStore = usePropertiesStore()
 const leasesStore = useLeasesStore()
 const tenantsStore = useTenantsStore()
 const receiptsStore = useReceiptsStore()
+const organizationsStore = useOrganizationsStore()
 
 const property = ref<Property | null>(null)
 const loading = ref(true)
@@ -88,6 +91,11 @@ onMounted(async () => {
       return
     }
 
+    // Fetch organization if property belongs to one
+    if (property.value.organization_id) {
+      await organizationsStore.fetchOrganizationById(property.value.organization_id)
+    }
+
     // Fetch leases for this property
     await leasesStore.fetchLeases(propertyId)
     
@@ -128,6 +136,22 @@ async function deleteLease(leaseId: string) {
     alert(err.message || 'Erreur lors de la suppression du bail')
   }
 }
+
+async function deleteProperty() {
+  if (!confirm('Êtes-vous sûr de vouloir supprimer cette propriété ? Tous les baux et quittances associés seront également supprimés.')) {
+    return
+  }
+
+  try {
+    const propertyId = route.params.id as string
+    await propertiesStore.deleteProperty(propertyId)
+    alert('Propriété supprimée avec succès')
+    router.push('/properties')
+  } catch (err: any) {
+    alert(err.message || 'Erreur lors de la suppression de la propriété')
+  }
+}
+
 </script>
 
 <template>
@@ -206,6 +230,15 @@ async function deleteLease(leaseId: string) {
         <div class="info-card">
           <h2>Détails de la propriété</h2>
           <div class="info-grid">
+            <div v-if="property.organization_id && organizationsStore.currentOrganization">
+              <strong>Propriétaire:</strong> 
+              <router-link :to="`/organizations/${property.organization_id}`" class="org-link">
+                🏢 {{ organizationsStore.currentOrganization.name }}
+              </router-link>
+            </div>
+            <div v-else>
+              <strong>Propriétaire:</strong> 👤 Propriétaire individuel
+            </div>
             <div><strong>Adresse:</strong> {{ property.address }}</div>
             <div><strong>Type:</strong> {{ property.property_type }}</div>
             <div><strong>Meublé:</strong> {{ property.furnished ? 'Oui' : 'Non' }}</div>
@@ -219,6 +252,14 @@ async function deleteLease(leaseId: string) {
           <div v-if="property.description" class="description">
             <strong>Description:</strong>
             <p>{{ property.description }}</p>
+          </div>
+          
+          <div class="danger-zone">
+            <h3>⚠️ Zone de danger</h3>
+            <p>Cette action est irréversible. Tous les baux et quittances associés seront supprimés.</p>
+            <button @click="deleteProperty" class="delete-property-btn">
+              🗑️ Supprimer cette propriété
+            </button>
           </div>
         </div>
 
@@ -482,6 +523,18 @@ async function deleteLease(leaseId: string) {
   gap: 1rem;
 }
 
+.org-link {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+
+.org-link:hover {
+  color: #764ba2;
+  text-decoration: underline;
+}
+
 .description {
   margin-top: 1.5rem;
 }
@@ -658,6 +711,41 @@ async function deleteLease(leaseId: string) {
   font-size: 1rem;
 }
 
+.danger-zone {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  border: 2px solid #dc2626;
+  border-radius: 8px;
+  background: rgba(220, 38, 38, 0.05);
+}
+
+.danger-zone h3 {
+  color: #dc2626;
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+}
+
+.danger-zone p {
+  color: #666;
+  margin: 0 0 1rem 0;
+  font-size: 0.9rem;
+}
+
+.delete-property-btn {
+  padding: 0.75rem 1.5rem;
+  background: #dc2626;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.delete-property-btn:hover {
+  background: #b91c1c;
+}
+
 @media (prefers-color-scheme: dark) {
   .info-card,
   .leases-list,
@@ -672,6 +760,14 @@ async function deleteLease(leaseId: string) {
 
   .receipts-table thead {
     background: #222;
+  }
+  
+  .danger-zone {
+    background: rgba(220, 38, 38, 0.1);
+  }
+  
+  .danger-zone p {
+    color: #aaa;
   }
 }
 </style>

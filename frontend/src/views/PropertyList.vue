@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { usePropertiesStore } from '../stores/properties'
+import { useOrganizationsStore } from '../stores/organizations'
 import type { CreateProperty, Property } from '../types'
 
 const propertiesStore = usePropertiesStore()
+const organizationsStore = useOrganizationsStore()
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const editingProperty = ref<Property | null>(null)
 
 const newProperty = ref<CreateProperty>({
+  user_id: undefined,
+  organization_id: undefined,
   address: '',
   property_type: 'apartment',
   furnished: false,
@@ -19,6 +23,8 @@ const newProperty = ref<CreateProperty>({
 })
 
 const editProperty = ref<CreateProperty>({
+  user_id: undefined,
+  organization_id: undefined,
   address: '',
   property_type: 'apartment',
   furnished: false,
@@ -30,10 +36,13 @@ const editProperty = ref<CreateProperty>({
 
 onMounted(async () => {
   try {
-    await propertiesStore.fetchProperties()
+    await Promise.all([
+      propertiesStore.fetchProperties(),
+      organizationsStore.fetchOrganizations()
+    ])
   } catch (err) {
     // Error is already set in store
-    console.error('Failed to load properties:', err)
+    console.error('Failed to load data:', err)
   }
 })
 
@@ -52,6 +61,8 @@ function openEditModal(property: Property, event: Event) {
   event.stopPropagation()
   editingProperty.value = property
   editProperty.value = {
+    user_id: property.user_id || undefined,
+    organization_id: property.organization_id || undefined,
     address: property.address,
     property_type: property.property_type,
     furnished: property.furnished,
@@ -76,6 +87,8 @@ async function handleUpdate() {
 
 function resetForm() {
   newProperty.value = {
+    user_id: undefined,
+    organization_id: undefined,
     address: '',
     property_type: 'apartment',
     furnished: false,
@@ -139,6 +152,21 @@ function resetForm() {
         <h2>Nouvelle propriété</h2>
         <form @submit.prevent="handleCreate">
           <div class="form-group">
+            <label>Propriétaire</label>
+            <select v-model="newProperty.organization_id">
+              <option :value="undefined">👤 Propriétaire individuel (moi)</option>
+              <option 
+                v-for="org in organizationsStore.organizations" 
+                :key="org.id" 
+                :value="org.id"
+              >
+                🏢 {{ org.name }}
+              </option>
+            </select>
+            <small>Sélectionnez une organisation (SCI) si le bien appartient à une société</small>
+          </div>
+
+          <div class="form-group">
             <label>Adresse *</label>
             <textarea v-model="newProperty.address" required rows="2" />
           </div>
@@ -198,6 +226,21 @@ function resetForm() {
       <div class="modal" @click.stop>
         <h2>Modifier la propriété</h2>
         <form @submit.prevent="handleUpdate">
+          <div class="form-group">
+            <label>Propriétaire</label>
+            <select v-model="editProperty.organization_id">
+              <option :value="undefined">👤 Propriétaire individuel (moi)</option>
+              <option 
+                v-for="org in organizationsStore.organizations" 
+                :key="org.id" 
+                :value="org.id"
+              >
+                🏢 {{ org.name }}
+              </option>
+            </select>
+            <small>Sélectionnez une organisation (SCI) si le bien appartient à une société</small>
+          </div>
+
           <div class="form-group">
             <label>Adresse *</label>
             <textarea v-model="editProperty.address" required rows="2" />

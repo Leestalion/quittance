@@ -11,9 +11,53 @@ export interface User {
   updated_at: string
 }
 
+export interface Organization {
+  id: string
+  name: string
+  legal_form: string
+  siret?: string
+  address: string
+  phone?: string
+  email?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface OrganizationMember {
+  id: string
+  organization_id: string
+  user_id: string
+  role: string
+  share_percentage?: number
+  joined_at: string
+}
+
+export interface OrganizationMemberWithUser {
+  id: string
+  role: string
+  share_percentage?: number
+  user_id: string
+  user_name: string
+  user_email: string
+}
+
+export interface OrganizationWithMembers {
+  id: string
+  name: string
+  legal_form: string
+  siret?: string
+  address: string
+  phone?: string
+  email?: string
+  created_at: string
+  updated_at: string
+  members: OrganizationMemberWithUser[]
+}
+
 export interface Property {
   id: string
-  user_id: string
+  user_id?: string
+  organization_id?: string
   address: string
   property_type: string
   furnished: boolean
@@ -74,7 +118,24 @@ export interface Receipt {
 }
 
 // Create/Update DTOs
+export interface CreateOrganization {
+  name: string
+  legal_form: string
+  siret?: string
+  address: string
+  phone?: string
+  email?: string
+}
+
+export interface AddOrganizationMember {
+  user_id: string
+  role: string
+  share_percentage?: number
+}
+
 export interface CreateProperty {
+  user_id?: string
+  organization_id?: string
   address: string
   property_type: string
   furnished: boolean

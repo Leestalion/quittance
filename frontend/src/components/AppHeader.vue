@@ -22,6 +22,7 @@ function handleLogout() {
         <router-link to="/dashboard">Tableau de bord</router-link>
         <router-link to="/properties">Propriétés</router-link>
         <router-link to="/tenants">Locataires</router-link>
+        <router-link to="/organizations">Organisations</router-link>
         <router-link to="/profile">Profil</router-link>
         <button @click="handleLogout" class="logout-btn">Déconnexion</button>
       </nav>
