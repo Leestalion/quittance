@@ -28,27 +28,27 @@ async fn list_leases(
 
     let leases = if let Some(property_id) = params.property_id {
         // Filter by property_id if provided (and verify ownership)
-        sqlx::query_as!(Lease,
+        sqlx::query_as::<_, Lease>(
             "SELECT l.id, l.property_id, l.tenant_id, l.start_date, l.end_date, l.duration_months, l.monthly_rent, l.charges, l.deposit, l.rent_revision, l.annual_charges_regularization, l.inventory_date, l.furniture_inventory, l.dpe, l.erp, l.home_insurance, l.legal_notice_provided, l.status, l.pdf_path, l.created_at, l.updated_at
              FROM leases l
              JOIN properties p ON l.property_id = p.id
              WHERE l.property_id = $1 AND p.user_id = $2
-             ORDER BY l.start_date DESC",
-            property_id,
-            user_id
+             ORDER BY l.start_date DESC"
         )
+        .bind(property_id)
+        .bind(user_id)
         .fetch_all(&db.pool)
         .await?
     } else {
         // List all leases for user's properties
-        sqlx::query_as!(Lease,
+        sqlx::query_as::<_, Lease>(
             "SELECT l.id, l.property_id, l.tenant_id, l.start_date, l.end_date, l.duration_months, l.monthly_rent, l.charges, l.deposit, l.rent_revision, l.annual_charges_regularization, l.inventory_date, l.furniture_inventory, l.dpe, l.erp, l.home_insurance, l.legal_notice_provided, l.status, l.pdf_path, l.created_at, l.updated_at
              FROM leases l
              JOIN properties p ON l.property_id = p.id
              WHERE p.user_id = $1
-             ORDER BY l.start_date DESC",
-            user_id
+             ORDER BY l.start_date DESC"
         )
+        .bind(user_id)
         .fetch_all(&db.pool)
         .await?
     };
@@ -63,29 +63,29 @@ async fn create_lease(
     // Calculate end_date based on start_date + duration_months
     let end_date = data.start_date + chrono::Months::new(data.duration_months as u32);
 
-    let lease = sqlx::query_as!(Lease,
+    let lease = sqlx::query_as::<_, Lease>(
         r#"
         INSERT INTO leases (property_id, tenant_id, start_date, end_date, duration_months, monthly_rent, charges, deposit, rent_revision, annual_charges_regularization, inventory_date, furniture_inventory, dpe, erp, home_insurance, legal_notice_provided, status)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 'active')
         RETURNING id, property_id, tenant_id, start_date, end_date, duration_months, monthly_rent, charges, deposit, rent_revision, annual_charges_regularization, inventory_date, furniture_inventory, dpe, erp, home_insurance, legal_notice_provided, status, pdf_path, created_at, updated_at
-        "#,
-        data.property_id,
-        data.tenant_id,
-        data.start_date,
-        end_date,
-        data.duration_months,
-        data.monthly_rent,
-        data.charges,
-        data.deposit,
-        data.rent_revision,
-        data.annual_charges_regularization,
-        data.inventory_date,
-        data.furniture_inventory,
-        data.dpe,
-        data.erp,
-        data.home_insurance,
-        data.legal_notice_provided
+        "#
     )
+    .bind(data.property_id)
+    .bind(data.tenant_id)
+    .bind(data.start_date)
+    .bind(end_date)
+    .bind(data.duration_months)
+    .bind(data.monthly_rent)
+    .bind(data.charges)
+    .bind(data.deposit)
+    .bind(data.rent_revision)
+    .bind(data.annual_charges_regularization)
+    .bind(data.inventory_date)
+    .bind(data.furniture_inventory)
+    .bind(data.dpe)
+    .bind(data.erp)
+    .bind(data.home_insurance)
+    .bind(data.legal_notice_provided)
     .fetch_one(&db.pool)
     .await?;
 
@@ -96,12 +96,12 @@ async fn get_lease(
     State(db): State<Database>,
     Path(id): Path<Uuid>,
 ) -> Result<Json<Lease>, AppError> {
-    let lease = sqlx::query_as!(Lease,
+    let lease = sqlx::query_as::<_, Lease>(
         "SELECT id, property_id, tenant_id, start_date, end_date, duration_months, monthly_rent, charges, deposit, rent_revision, annual_charges_regularization, inventory_date, furniture_inventory, dpe, erp, home_insurance, legal_notice_provided, status, pdf_path, created_at, updated_at
          FROM leases
-         WHERE id = $1",
-        id
+         WHERE id = $1"
     )
+    .bind(id)
     .fetch_optional(&db.pool)
     .await?
     .ok_or_else(|| AppError::NotFound(format!("Lease with id {} not found", id)))?;
@@ -114,10 +114,10 @@ async fn delete_lease(
     Path(id): Path<Uuid>,
 ) -> Result<StatusCode, AppError> {
     // Check if lease exists
-    let exists = sqlx::query_scalar!(
-        "SELECT EXISTS(SELECT 1 FROM leases WHERE id = $1)",
-        id
+    let exists = sqlx::query_scalar::<_, Option<bool>>(
+        "SELECT EXISTS(SELECT 1 FROM leases WHERE id = $1)"
     )
+    .bind(id)
     .fetch_one(&db.pool)
     .await?;
 
@@ -126,10 +126,10 @@ async fn delete_lease(
     }
 
     // Delete the lease (receipts will be cascade deleted)
-    sqlx::query!(
-        "DELETE FROM leases WHERE id = $1",
-        id
+    sqlx::query(
+        "DELETE FROM leases WHERE id = $1"
     )
+    .bind(id)
     .execute(&db.pool)
     .await?;
 
