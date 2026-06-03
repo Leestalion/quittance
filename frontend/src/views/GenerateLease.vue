@@ -21,7 +21,7 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const showPreview = ref(false)
 const furnitureSets = ref<FurnitureSet[]>([])
-const selectedFurnitureSet = ref<FurnitureSetWithItems | null>(null)
+const selectedFurnitureSets = ref<FurnitureSetWithItems[]>([])
 
 // Form data
 const formData = ref({
@@ -33,7 +33,7 @@ const formData = ref({
   deposit: 0,
   rent_revision: true,
   inventory_date: '',
-  furniture_set_id: '',
+  furniture_set_ids: [] as string[],
   furniture_inventory: '',
   dpe: '',
   erp: '',
@@ -105,12 +105,14 @@ const leaseData = computed<LeaseData | null>(() => {
     },
     annexes: {
       furnitureInventory: formData.value.furniture_inventory || undefined,
-      furnitureSetName: selectedFurnitureSet.value?.name,
-      furnitureItems: selectedFurnitureSet.value?.items.map(item => ({
-        category: item.category,
-        name: item.name,
-        quantity: item.quantity,
-        itemCondition: item.item_condition,
+      furnitureSets: selectedFurnitureSets.value.map(set => ({
+        name: set.name,
+        items: set.items.map(item => ({
+          category: item.category,
+          name: item.name,
+          quantity: item.quantity,
+          itemCondition: item.item_condition,
+        }))
       })),
       dpe: formData.value.dpe || undefined,
       erp: formData.value.erp || undefined,
@@ -150,14 +152,15 @@ onMounted(async () => {
 })
 
 async function loadSelectedFurnitureSet() {
-  if (!formData.value.furniture_set_id) {
-    selectedFurnitureSet.value = null
+  if (formData.value.furniture_set_ids.length === 0) {
+    selectedFurnitureSets.value = []
     return
   }
 
-  selectedFurnitureSet.value = await propertiesStore.getFurnitureSet(
-    propertyId.value,
-    formData.value.furniture_set_id,
+  selectedFurnitureSets.value = await Promise.all(
+    formData.value.furniture_set_ids.map(setId =>
+      propertiesStore.getFurnitureSet(propertyId.value, setId),
+    )
   )
 }
 
@@ -188,7 +191,7 @@ async function generateLease() {
       rent_revision: formData.value.rent_revision,
       annual_charges_regularization: false,
       inventory_date: formData.value.inventory_date || undefined,
-      furniture_set_id: formData.value.furniture_set_id || undefined,
+      furniture_set_ids: formData.value.furniture_set_ids,
       furniture_inventory: formData.value.furniture_inventory || undefined,
       dpe: formData.value.dpe || undefined,
       erp: formData.value.erp || undefined,
@@ -303,13 +306,18 @@ function back() {
         <h3>Annexes et mentions légales</h3>
 
         <div v-if="property?.furnished" class="form-group">
-          <label for="furnitureSet">Set de mobilier (optionnel)</label>
-          <select id="furnitureSet" v-model="formData.furniture_set_id" @change="loadSelectedFurnitureSet">
-            <option value="">-- Aucun set sélectionné --</option>
-            <option v-for="set in furnitureSets" :key="set.id" :value="set.id">
-              {{ set.name }}
-            </option>
-          </select>
+          <label>Sets de mobilier (un ou plusieurs)</label>
+          <div class="furniture-set-list">
+            <label v-for="set in furnitureSets" :key="set.id" class="furniture-set-option">
+              <input
+                :value="set.id"
+                type="checkbox"
+                v-model="formData.furniture_set_ids"
+                @change="loadSelectedFurnitureSet"
+              />
+              <span>{{ set.name }}</span>
+            </label>
+          </div>
           <small class="hint-text">
             Vous pouvez créer/modifier des sets de mobilier dans la fiche de la propriété.
           </small>

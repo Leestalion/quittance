@@ -145,7 +145,7 @@ export interface Lease {
   rent_revision: boolean
   annual_charges_regularization: boolean
   inventory_date?: string
-  furniture_set_id?: string
+  furniture_set_ids: string[]
   furniture_inventory?: string
   dpe?: string
   erp?: string
@@ -222,7 +222,7 @@ export interface CreateLease {
   rent_revision: boolean
   annual_charges_regularization: boolean
   inventory_date?: string
-  furniture_set_id?: string
+  furniture_set_ids: string[]
   furniture_inventory?: string
   dpe?: string
   erp?: string
@@ -304,8 +304,10 @@ export interface LeaseData {
   }
   annexes: {
     furnitureInventory?: string
-    furnitureSetName?: string
-    furnitureItems?: Array<{ category: string; name: string; quantity: number; itemCondition: string }>
+    furnitureSets?: Array<{
+      name: string
+      items: Array<{ category: string; name: string; quantity: number; itemCondition: string }>
+    }>
     dpe?: string
     erp?: string
     homeInsurance?: string
