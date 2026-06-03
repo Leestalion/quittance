@@ -38,6 +38,8 @@ const totalMonthly = computed(() =>
   props.data.terms.monthlyRent + props.data.terms.charges
 )
 
+const depositIsZero = computed(() => props.data.terms.deposit === 0)
+
 const formatCurrency = (amount: number) => {
   return amount.toLocaleString('fr-FR', {
     style: 'currency',
@@ -81,6 +83,20 @@ function exportPDF() {
   doc.setFont('helvetica', 'normal')
   doc.text(props.data.landlord.name, margin + 5, y)
   y += 5
+
+  if (props.data.landlord.legalForm) {
+    doc.text(`Forme juridique : ${props.data.landlord.legalForm}`, margin + 5, y)
+    y += 5
+  }
+  if (props.data.landlord.siret) {
+    doc.text(`SIRET : ${props.data.landlord.siret}`, margin + 5, y)
+    y += 5
+  }
+  if (props.data.landlord.legalRepresentative) {
+    doc.text(`Représentant légal : ${props.data.landlord.legalRepresentative}`, margin + 5, y)
+    y += 5
+  }
+
   const landlordAddressLines = doc.splitTextToSize(props.data.landlord.address, pageWidth - 2 * margin - 5)
   doc.text(landlordAddressLines, margin + 5, y)
   y += landlordAddressLines.length * 5
@@ -163,11 +179,21 @@ function exportPDF() {
   doc.text(article3Lines, margin, y)
   y += article3Lines.length * 5 + 3
 
+  const noRegularizationText = 'Les charges étant forfaitaires, aucune régularisation annuelle n\'a lieu.'
+  const noRegularizationLines = doc.splitTextToSize(noRegularizationText, pageWidth - 2 * margin)
+  doc.text(noRegularizationLines, margin, y)
+  y += noRegularizationLines.length * 5
+
   if (props.data.terms.rentRevision) {
     const revisionText = "Le loyer pourra être révisé annuellement en fonction de la variation de l'Indice de Référence des Loyers (IRL) publié par l'INSEE."
     const revisionLines = doc.splitTextToSize(revisionText, pageWidth - 2 * margin)
     doc.text(revisionLines, margin, y)
     y += revisionLines.length * 5
+  } else {
+    const noRevisionText = 'Aucune révision annuelle du loyer n\'est prévue au présent bail.'
+    const noRevisionLines = doc.splitTextToSize(noRevisionText, pageWidth - 2 * margin)
+    doc.text(noRevisionLines, margin, y)
+    y += noRevisionLines.length * 5
   }
   y += 8
 
@@ -182,7 +208,9 @@ function exportPDF() {
   doc.text('Article 4 - Dépôt de garantie', margin, y)
   y += 6
   doc.setFont('helvetica', 'normal')
-  const article4 = `Le locataire verse au bailleur un dépôt de garantie d'un montant de ${formatCurrency(props.data.terms.deposit)}, qui lui sera restitué dans un délai maximum de deux mois après la restitution des clés, déduction faite, le cas échéant, des sommes restant dues au bailleur et des sommes dont celui-ci pourrait être tenu.`
+  const article4 = depositIsZero.value
+    ? 'Aucun dépôt de garantie n\'est exigé au titre du présent bail.'
+    : `Le locataire verse au bailleur un dépôt de garantie d'un montant de ${formatCurrency(props.data.terms.deposit)}, qui lui sera restitué dans un délai maximum de deux mois après la restitution des clés, déduction faite, le cas échéant, des sommes restant dues au bailleur et des sommes dont celui-ci pourrait être tenu.`
   const article4Lines = doc.splitTextToSize(article4, pageWidth - 2 * margin)
   doc.text(article4Lines, margin, y)
   y += article4Lines.length * 5 + 8
@@ -198,6 +226,32 @@ function exportPDF() {
     const article5Lines = doc.splitTextToSize(article5, pageWidth - 2 * margin)
     doc.text(article5Lines, margin, y)
     y += article5Lines.length * 5 + 8
+  }
+
+  // Check page break before legal annexes
+  if (y > pageHeight - 75) {
+    doc.addPage()
+    y = 20
+  }
+
+  doc.setFont('helvetica', 'bold')
+  doc.text('Article 6 - Annexes et mentions légales', margin, y)
+  y += 6
+  doc.setFont('helvetica', 'normal')
+
+  const annexLines: string[] = []
+  if (props.data.property.type === 'furnished') {
+    annexLines.push(`- Inventaire du mobilier: ${props.data.annexes.furnitureInventory || 'annexé au présent bail meublé.'}`)
+  }
+  annexLines.push(`- DPE: ${props.data.annexes.dpe || 'annexé au présent bail.'}`)
+  annexLines.push(`- ERP: ${props.data.annexes.erp || 'annexé au présent bail.'}`)
+  annexLines.push(`- Assurance habitation: ${props.data.annexes.homeInsurance || 'le locataire s\'engage à justifier d\'une assurance des risques locatifs à l\'entrée dans les lieux puis chaque année.'}`)
+  annexLines.push(`- Notice d'information légale locataire: ${props.data.annexes.legalNoticeProvided ? 'remise au locataire.' : 'non remise à ce jour.'}`)
+
+  for (const line of annexLines) {
+    const wrapped = doc.splitTextToSize(line, pageWidth - 2 * margin)
+    doc.text(wrapped, margin, y)
+    y += wrapped.length * 5 + 1
   }
 
   // Check page break
@@ -255,6 +309,9 @@ function exportPDF() {
         <div class="party">
           <h3>Le bailleur :</h3>
           <p><strong>{{ data.landlord.name }}</strong></p>
+          <p v-if="data.landlord.legalForm">Forme juridique: {{ data.landlord.legalForm }}</p>
+          <p v-if="data.landlord.siret">SIRET: {{ data.landlord.siret }}</p>
+          <p v-if="data.landlord.legalRepresentative">Représentant légal: {{ data.landlord.legalRepresentative }}</p>
           <p class="address">{{ data.landlord.address }}</p>
           <p v-if="data.landlord.birthDate && data.landlord.birthPlace" class="birth-info">
             Né(e) le {{ new Date(data.landlord.birthDate).toLocaleDateString('fr-FR') }}
@@ -309,19 +366,28 @@ function exportPDF() {
             Les charges sont fixées forfaitairement à <strong>{{ formatCurrency(data.terms.charges) }}</strong>
             par mois, soit un total mensuel de <strong>{{ formatCurrency(totalMonthly) }}</strong>.
           </p>
+          <p class="revision-clause">
+            Les charges étant forfaitaires, aucune régularisation annuelle n'a lieu.
+          </p>
           <p v-if="data.terms.rentRevision" class="revision-clause">
             Le loyer pourra être révisé annuellement en fonction de la variation de l'Indice de Référence
             des Loyers (IRL) publié par l'INSEE.
+          </p>
+          <p v-else class="revision-clause">
+            Aucune révision annuelle du loyer n'est prévue au présent bail.
           </p>
         </article>
 
         <article class="lease-article">
           <h3>Article 4 - Dépôt de garantie</h3>
-          <p>
+          <p v-if="!depositIsZero">
             Le locataire verse au bailleur un dépôt de garantie d'un montant de
             <strong>{{ formatCurrency(data.terms.deposit) }}</strong>, qui lui sera restitué dans un délai
             maximum de deux mois après la restitution des clés, déduction faite, le cas échéant,
             des sommes restant dues au bailleur et des sommes dont celui-ci pourrait être tenu.
+          </p>
+          <p v-else>
+            Aucun dépôt de garantie n'est exigé au titre du présent bail.
           </p>
         </article>
 
@@ -331,6 +397,30 @@ function exportPDF() {
             Un état des lieux contradictoire d'entrée a été établi le
             <strong>{{ new Date(data.terms.inventoryDate).toLocaleDateString('fr-FR') }}</strong>.
             Un état des lieux de sortie sera effectué lors de la restitution des clés, selon les mêmes modalités.
+          </p>
+        </article>
+
+        <article class="lease-article">
+          <h3>Article 6 - Annexes et mentions légales</h3>
+          <p v-if="data.property.type === 'furnished'">
+            Inventaire du mobilier:
+            <strong>{{ data.annexes.furnitureInventory || 'annexé au présent bail meublé.' }}</strong>
+          </p>
+          <p>
+            DPE:
+            <strong>{{ data.annexes.dpe || 'annexé au présent bail.' }}</strong>
+          </p>
+          <p>
+            État des risques (ERP):
+            <strong>{{ data.annexes.erp || 'annexé au présent bail.' }}</strong>
+          </p>
+          <p>
+            Assurance habitation:
+            <strong>{{ data.annexes.homeInsurance || 'le locataire s\'engage à justifier d\'une assurance des risques locatifs à l\'entrée dans les lieux puis chaque année.' }}</strong>
+          </p>
+          <p>
+            Notice d'information légale locataire:
+            <strong>{{ data.annexes.legalNoticeProvided ? 'remise au locataire.' : 'non remise à ce jour.' }}</strong>
           </p>
         </article>
       </section>

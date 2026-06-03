@@ -94,7 +94,13 @@ export interface Lease {
   charges: number
   deposit: number
   rent_revision: boolean
+  annual_charges_regularization: boolean
   inventory_date?: string
+  furniture_inventory?: string
+  dpe?: string
+  erp?: string
+  home_insurance?: string
+  legal_notice_provided: boolean
   status: string
   pdf_path?: string
   created_at: string
@@ -164,7 +170,13 @@ export interface CreateLease {
   charges: number
   deposit: number
   rent_revision: boolean
+  annual_charges_regularization: boolean
   inventory_date?: string
+  furniture_inventory?: string
+  dpe?: string
+  erp?: string
+  home_insurance?: string
+  legal_notice_provided: boolean
 }
 
 export interface CreateReceipt {
@@ -212,7 +224,15 @@ export interface ReceiptData {
 }
 
 export interface LeaseData {
-  landlord: { name: string; address: string; birthDate?: string; birthPlace?: string }
+  landlord: {
+    name: string
+    address: string
+    birthDate?: string
+    birthPlace?: string
+    legalForm?: string
+    siret?: string
+    legalRepresentative?: string
+  }
   tenant: { name: string; address: string; birthDate?: string; birthPlace?: string }
   property: {
     address: string
@@ -228,6 +248,14 @@ export interface LeaseData {
     charges: number
     deposit: number
     rentRevision: boolean
+    annualChargesRegularization: boolean
     inventoryDate?: string
+  }
+  annexes: {
+    furnitureInventory?: string
+    dpe?: string
+    erp?: string
+    homeInsurance?: string
+    legalNoticeProvided: boolean
   }
 }

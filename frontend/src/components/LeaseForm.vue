@@ -12,6 +12,9 @@ const today: string = new Date().toISOString().split('T')[0] ?? ''
 const form = reactive({
   landlordName: '',
   landlordAddress: '',
+  landlordLegalForm: '',
+  landlordSiret: '',
+  landlordLegalRepresentative: '',
   landlordBirthDate: '',
   landlordBirthPlace: '',
   tenantName: '',
@@ -29,7 +32,12 @@ const form = reactive({
   charges: 0,
   deposit: 0,
   rentRevision: true,
-  inventoryDate: today
+  inventoryDate: today,
+  furnitureInventory: '',
+  dpe: '',
+  erp: '',
+  homeInsurance: '',
+  legalNoticeProvided: true
 })
 
 const totalMonthly = computed(() => form.monthlyRent + form.charges)
@@ -39,6 +47,9 @@ function handleSubmit() {
     landlord: {
       name: form.landlordName,
       address: form.landlordAddress,
+      legalForm: form.landlordLegalForm || undefined,
+      siret: form.landlordSiret || undefined,
+      legalRepresentative: form.landlordLegalRepresentative || undefined,
       birthDate: form.landlordBirthDate || undefined,
       birthPlace: form.landlordBirthPlace || undefined
     },
@@ -62,7 +73,15 @@ function handleSubmit() {
       charges: form.charges,
       deposit: form.deposit,
       rentRevision: form.rentRevision,
+      annualChargesRegularization: false,
       inventoryDate: form.inventoryDate || undefined
+    },
+    annexes: {
+      furnitureInventory: form.furnitureInventory || undefined,
+      dpe: form.dpe || undefined,
+      erp: form.erp || undefined,
+      homeInsurance: form.homeInsurance || undefined,
+      legalNoticeProvided: form.legalNoticeProvided
     }
   }
   emit('generate', data)
@@ -98,6 +117,35 @@ function handleSubmit() {
           required
           placeholder="123 rue de Paris, 75001 Paris"
           rows="2"
+        />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="landlordLegalForm">Forme juridique (si société)</label>
+          <input
+            id="landlordLegalForm"
+            v-model="form.landlordLegalForm"
+            type="text"
+            placeholder="SCI, SARL, SAS..."
+          />
+        </div>
+        <div class="form-group">
+          <label for="landlordSiret">SIRET (si société)</label>
+          <input
+            id="landlordSiret"
+            v-model="form.landlordSiret"
+            type="text"
+            placeholder="123 456 789 00012"
+          />
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="landlordLegalRepresentative">Représentant légal (si société)</label>
+        <input
+          id="landlordLegalRepresentative"
+          v-model="form.landlordLegalRepresentative"
+          type="text"
+          placeholder="Nom du représentant légal"
         />
       </div>
       <div class="form-row">
@@ -292,6 +340,7 @@ function handleSubmit() {
             step="0.01"
             required
           />
+          <small>Saisissez 0 si aucun dépôt de garantie n'est exigé.</small>
         </div>
         <div class="form-group checkbox-group">
           <label>
@@ -303,6 +352,40 @@ function handleSubmit() {
             Révision annuelle du loyer (IRL)
           </label>
         </div>
+      </div>
+      <div class="form-group">
+        <p>Charges au forfait: aucune régularisation annuelle n'a lieu.</p>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Annexes et mentions légales</legend>
+      <div v-if="form.propertyType === 'furnished'" class="form-group">
+        <label for="furnitureInventory">Inventaire du mobilier</label>
+        <textarea
+          id="furnitureInventory"
+          v-model="form.furnitureInventory"
+          rows="2"
+          placeholder="Ex: lit, table, chaises, électroménager..."
+        />
+      </div>
+      <div class="form-group">
+        <label for="dpe">DPE</label>
+        <input id="dpe" v-model="form.dpe" type="text" placeholder="Référence / classe / date" />
+      </div>
+      <div class="form-group">
+        <label for="erp">État des risques (ERP)</label>
+        <input id="erp" v-model="form.erp" type="text" placeholder="Date ou référence ERP" />
+      </div>
+      <div class="form-group">
+        <label for="homeInsurance">Assurance habitation mentionnée</label>
+        <input id="homeInsurance" v-model="form.homeInsurance" type="text" placeholder="Mention assurance locataire" />
+      </div>
+      <div class="form-group checkbox-group">
+        <label>
+          <input v-model="form.legalNoticeProvided" type="checkbox" />
+          Notice d'information légale locataire remise
+        </label>
       </div>
     </fieldset>
 

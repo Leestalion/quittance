@@ -5,6 +5,7 @@ import { useLeasesStore } from '../stores/leases'
 import { usePropertiesStore } from '../stores/properties'
 import { useTenantsStore } from '../stores/tenants'
 import { useAuthStore } from '../stores/auth'
+import { useOrganizationsStore } from '../stores/organizations'
 import LeasePreview from '../components/LeasePreview.vue'
 import type { LeaseData } from '../types'
 
@@ -14,6 +15,7 @@ const leasesStore = useLeasesStore()
 const propertiesStore = usePropertiesStore()
 const tenantsStore = useTenantsStore()
 const authStore = useAuthStore()
+const organizationsStore = useOrganizationsStore()
 
 const loading = ref(true)
 const error = ref<string | null>(null)
@@ -30,12 +32,20 @@ const tenant = computed(() =>
 const leaseData = computed<LeaseData | null>(() => {
   if (!property.value || !tenant.value || !authStore.user || !lease.value) return null
 
+  const organization = property.value.organization_id
+    ? organizationsStore.currentOrganization
+    : null
+  const ownerMember = organization?.members.find(member => member.role === 'owner')
+
   return {
     landlord: {
-      name: authStore.user.name,
-      address: authStore.user.address,
-      birthDate: authStore.user.birth_date,
-      birthPlace: authStore.user.birth_place
+      name: organization?.name || authStore.user.name,
+      address: organization?.address || authStore.user.address,
+      legalForm: organization?.legal_form,
+      siret: organization?.siret,
+      legalRepresentative: organization ? (ownerMember?.user_name || authStore.user.name) : undefined,
+      birthDate: organization ? undefined : authStore.user.birth_date,
+      birthPlace: organization ? undefined : authStore.user.birth_place
     },
     tenant: {
       name: tenant.value.name,
@@ -57,7 +67,15 @@ const leaseData = computed<LeaseData | null>(() => {
       charges: Number(lease.value.charges),
       deposit: Number(lease.value.deposit),
       rentRevision: lease.value.rent_revision,
+      annualChargesRegularization: lease.value.annual_charges_regularization,
       inventoryDate: lease.value.inventory_date || undefined
+    },
+    annexes: {
+      furnitureInventory: lease.value.furniture_inventory || undefined,
+      dpe: lease.value.dpe || undefined,
+      erp: lease.value.erp || undefined,
+      homeInsurance: lease.value.home_insurance || undefined,
+      legalNoticeProvided: lease.value.legal_notice_provided
     }
   }
 })
@@ -73,6 +91,10 @@ onMounted(async () => {
       propertiesStore.fetchProperty(propertyId.value),
       authStore.user ? Promise.resolve() : authStore.fetchCurrentUser()
     ])
+
+    if (property.value?.organization_id) {
+      await organizationsStore.fetchOrganizationById(property.value.organization_id)
+    }
 
     // Fetch tenant after lease is loaded
     if (lease.value) {

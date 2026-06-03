@@ -30,7 +30,12 @@ const formData = ref({
   charges: 0,
   deposit: 0,
   rent_revision: true,
-  inventory_date: ''
+  inventory_date: '',
+  furniture_inventory: '',
+  dpe: '',
+  erp: '',
+  home_insurance: '',
+  legal_notice_provided: true
 })
 
 const propertyId = computed(() => route.params.propertyId as string)
@@ -48,9 +53,13 @@ const leaseData = computed<LeaseData | null>(() => {
   if (property.value.organization_id && organizationsStore.currentOrganization) {
     // Use organization as landlord
     const org = organizationsStore.currentOrganization
+    const ownerMember = org.members.find(member => member.role === 'owner')
     landlordData = {
       name: org.name,
       address: org.address,
+      legalForm: org.legal_form,
+      siret: org.siret,
+      legalRepresentative: ownerMember?.user_name || authStore.user?.name,
       birthDate: undefined,
       birthPlace: undefined
     }
@@ -88,7 +97,15 @@ const leaseData = computed<LeaseData | null>(() => {
       charges: formData.value.charges,
       deposit: formData.value.deposit,
       rentRevision: formData.value.rent_revision,
+      annualChargesRegularization: false,
       inventoryDate: formData.value.inventory_date || undefined
+    },
+    annexes: {
+      furnitureInventory: formData.value.furniture_inventory || undefined,
+      dpe: formData.value.dpe || undefined,
+      erp: formData.value.erp || undefined,
+      homeInsurance: formData.value.home_insurance || undefined,
+      legalNoticeProvided: formData.value.legal_notice_provided
     }
   }
 })
@@ -143,7 +160,13 @@ async function generateLease() {
       charges: formData.value.charges,
       deposit: formData.value.deposit,
       rent_revision: formData.value.rent_revision,
-      inventory_date: formData.value.inventory_date || undefined
+      annual_charges_regularization: false,
+      inventory_date: formData.value.inventory_date || undefined,
+      furniture_inventory: formData.value.furniture_inventory || undefined,
+      dpe: formData.value.dpe || undefined,
+      erp: formData.value.erp || undefined,
+      home_insurance: formData.value.home_insurance || undefined,
+      legal_notice_provided: formData.value.legal_notice_provided
     })
 
     console.log('Lease created:', lease);
@@ -229,6 +252,9 @@ function back() {
         <div class="form-group">
           <label for="deposit">Dépôt de garantie (€) *</label>
           <input type="number" id="deposit" v-model="formData.deposit" min="0" step="0.01" required />
+          <small class="hint-text">
+            Saisissez 0 si aucun dépôt de garantie n'est exigé.
+          </small>
         </div>
 
         <div class="form-group">
@@ -240,6 +266,59 @@ function back() {
           <label>
             <input type="checkbox" v-model="formData.rent_revision" />
             Clause de révision du loyer
+          </label>
+        </div>
+
+        <div class="form-group legal-note">
+          Charges au forfait: aucune régularisation annuelle n'a lieu.
+        </div>
+
+        <h3>Annexes et mentions légales</h3>
+
+        <div v-if="property?.furnished" class="form-group">
+          <label for="furnitureInventory">Inventaire du mobilier (bail meublé)</label>
+          <textarea
+            id="furnitureInventory"
+            v-model="formData.furniture_inventory"
+            rows="3"
+            placeholder="Ex: lit double, table, 4 chaises, réfrigérateur, plaques, vaisselle..."
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="dpe">DPE (référence/classe/date)</label>
+          <input
+            type="text"
+            id="dpe"
+            v-model="formData.dpe"
+            placeholder="Ex: DPE classe C - réalisé le 15/04/2026"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="erp">État des risques (ERP)</label>
+          <input
+            type="text"
+            id="erp"
+            v-model="formData.erp"
+            placeholder="Ex: ERP daté du 01/05/2026"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="homeInsurance">Assurance habitation mentionnée</label>
+          <input
+            type="text"
+            id="homeInsurance"
+            v-model="formData.home_insurance"
+            placeholder="Ex: Attestation à fournir à l'entrée puis annuellement"
+          />
+        </div>
+
+        <div class="form-group checkbox">
+          <label>
+            <input type="checkbox" v-model="formData.legal_notice_provided" />
+            Notice d'information légale locataire remise
           </label>
         </div>
 
