@@ -8,7 +8,6 @@ use axum::{
 use serde_json::json;
 use tower_http::services::ServeDir;
 use tower_http::cors::{CorsLayer, Any};
-use tower_http::set_header::SetResponseHeaderLayer;
 use std::net::SocketAddr;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -56,13 +55,7 @@ async fn main() {
 
     let assets_path = format!("{}/assets", frontend_path);
 
-    // Serve hashed Vite assets with long-lived immutable cache.
-    let assets_service = get_service(ServeDir::new(&assets_path)).layer(
-        SetResponseHeaderLayer::if_not_present(
-            header::CACHE_CONTROL,
-            HeaderValue::from_static("public, max-age=31536000, immutable"),
-        ),
-    );
+    let assets_service = get_service(ServeDir::new(&assets_path));
 
     // Main application router
     let app = Router::new()
