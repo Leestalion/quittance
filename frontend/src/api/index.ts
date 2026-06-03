@@ -1,14 +1,20 @@
 import apiClient from './client'
-import type { 
-  User, 
-  Property, 
-  Tenant, 
-  Lease, 
+import type {
+  User,
+  Property,
+  Tenant,
+  Lease,
   Receipt,
+  FurnitureSet,
+  FurnitureSetWithItems,
+  FurnitureItem,
   CreateProperty,
   CreateTenant,
   CreateLease,
-  CreateReceipt
+  CreateReceipt,
+  CreateFurnitureSet,
+  CreateFurnitureItem,
+  UpdateFurnitureItem,
 } from '../types'
 
 export { organizationsApi } from './organizations'
@@ -60,6 +66,44 @@ export const propertiesAPI = {
 
   async delete(id: string): Promise<void> {
     await apiClient.delete(`/properties/${id}`)
+  },
+
+  async listFurnitureSets(propertyId: string): Promise<FurnitureSet[]> {
+    const response = await apiClient.get(`/properties/${propertyId}/furniture-sets`)
+    return response.data
+  },
+
+  async getFurnitureSet(propertyId: string, setId: string): Promise<FurnitureSetWithItems> {
+    const response = await apiClient.get(`/properties/${propertyId}/furniture-sets/${setId}`)
+    return response.data
+  },
+
+  async createFurnitureSet(propertyId: string, data: CreateFurnitureSet): Promise<FurnitureSet> {
+    const response = await apiClient.post(`/properties/${propertyId}/furniture-sets`, data)
+    return response.data
+  },
+
+  async updateFurnitureSet(propertyId: string, setId: string, data: Partial<CreateFurnitureSet>): Promise<FurnitureSet> {
+    const response = await apiClient.put(`/properties/${propertyId}/furniture-sets/${setId}`, data)
+    return response.data
+  },
+
+  async deleteFurnitureSet(propertyId: string, setId: string): Promise<void> {
+    await apiClient.delete(`/properties/${propertyId}/furniture-sets/${setId}`)
+  },
+
+  async createFurnitureItem(propertyId: string, setId: string, data: CreateFurnitureItem): Promise<FurnitureItem> {
+    const response = await apiClient.post(`/properties/${propertyId}/furniture-sets/${setId}/items`, data)
+    return response.data
+  },
+
+  async updateFurnitureItem(propertyId: string, setId: string, itemId: string, data: UpdateFurnitureItem): Promise<FurnitureItem> {
+    const response = await apiClient.put(`/properties/${propertyId}/furniture-sets/${setId}/items/${itemId}`, data)
+    return response.data
+  },
+
+  async deleteFurnitureItem(propertyId: string, setId: string, itemId: string): Promise<void> {
+    await apiClient.delete(`/properties/${propertyId}/furniture-sets/${setId}/items/${itemId}`)
   }
 }
 

@@ -1,7 +1,15 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { propertiesAPI } from '../api'
-import type { Property, CreateProperty } from '../types'
+import type {
+  Property,
+  CreateProperty,
+  FurnitureSet,
+  FurnitureSetWithItems,
+  CreateFurnitureSet,
+  CreateFurnitureItem,
+  UpdateFurnitureItem,
+} from '../types'
 
 export const usePropertiesStore = defineStore('properties', () => {
   const properties = ref<Property[]>([])
@@ -58,6 +66,38 @@ export const usePropertiesStore = defineStore('properties', () => {
     return properties.value.find(p => p.id === id)
   }
 
+  async function listFurnitureSets(propertyId: string): Promise<FurnitureSet[]> {
+    return propertiesAPI.listFurnitureSets(propertyId)
+  }
+
+  async function getFurnitureSet(propertyId: string, setId: string): Promise<FurnitureSetWithItems> {
+    return propertiesAPI.getFurnitureSet(propertyId, setId)
+  }
+
+  async function createFurnitureSet(propertyId: string, data: CreateFurnitureSet): Promise<FurnitureSet> {
+    return propertiesAPI.createFurnitureSet(propertyId, data)
+  }
+
+  async function updateFurnitureSet(propertyId: string, setId: string, data: Partial<CreateFurnitureSet>): Promise<FurnitureSet> {
+    return propertiesAPI.updateFurnitureSet(propertyId, setId, data)
+  }
+
+  async function deleteFurnitureSet(propertyId: string, setId: string): Promise<void> {
+    return propertiesAPI.deleteFurnitureSet(propertyId, setId)
+  }
+
+  async function createFurnitureItem(propertyId: string, setId: string, data: CreateFurnitureItem) {
+    return propertiesAPI.createFurnitureItem(propertyId, setId, data)
+  }
+
+  async function updateFurnitureItem(propertyId: string, setId: string, itemId: string, data: UpdateFurnitureItem) {
+    return propertiesAPI.updateFurnitureItem(propertyId, setId, itemId, data)
+  }
+
+  async function deleteFurnitureItem(propertyId: string, setId: string, itemId: string): Promise<void> {
+    return propertiesAPI.deleteFurnitureItem(propertyId, setId, itemId)
+  }
+
   return {
     properties,
     loading,
@@ -67,6 +107,14 @@ export const usePropertiesStore = defineStore('properties', () => {
     createProperty,
     updateProperty,
     deleteProperty,
-    getPropertyById
+    getPropertyById,
+    listFurnitureSets,
+    getFurnitureSet,
+    createFurnitureSet,
+    updateFurnitureSet,
+    deleteFurnitureSet,
+    createFurnitureItem,
+    updateFurnitureItem,
+    deleteFurnitureItem,
   }
 })

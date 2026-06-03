@@ -40,6 +40,8 @@ const totalMonthly = computed(() =>
 
 const depositIsZero = computed(() => props.data.terms.deposit === 0)
 
+const annexFurnitureItems = computed(() => props.data.annexes.furnitureItems ?? [])
+
 const formatCurrency = (amount: number) => {
   return amount.toLocaleString('fr-FR', {
     style: 'currency',
@@ -241,7 +243,15 @@ function exportPDF() {
 
   const annexLines: string[] = []
   if (props.data.property.type === 'furnished') {
+    annexLines.push(`- Set mobilier sélectionné: ${props.data.annexes.furnitureSetName || 'non précisé.'}`)
     annexLines.push(`- Inventaire du mobilier: ${props.data.annexes.furnitureInventory || 'annexé au présent bail meublé.'}`)
+
+    if (annexFurnitureItems.value.length > 0) {
+      annexLines.push('- Mobilier détaillé (catégorie | nom | quantité | état):')
+      for (const item of annexFurnitureItems.value) {
+        annexLines.push(`  ${item.category} | ${item.name} | ${item.quantity} | ${item.itemCondition}`)
+      }
+    }
   }
   annexLines.push(`- DPE: ${props.data.annexes.dpe || 'annexé au présent bail.'}`)
   annexLines.push(`- ERP: ${props.data.annexes.erp || 'annexé au présent bail.'}`)
@@ -403,9 +413,32 @@ function exportPDF() {
         <article class="lease-article">
           <h3>Article 6 - Annexes et mentions légales</h3>
           <p v-if="data.property.type === 'furnished'">
+            Set mobilier sélectionné:
+            <strong>{{ data.annexes.furnitureSetName || 'non précisé.' }}</strong>
+          </p>
+          <p v-if="data.property.type === 'furnished'">
             Inventaire du mobilier:
             <strong>{{ data.annexes.furnitureInventory || 'annexé au présent bail meublé.' }}</strong>
           </p>
+
+          <table v-if="annexFurnitureItems.length > 0" class="furniture-table">
+            <thead>
+              <tr>
+                <th>Catégorie</th>
+                <th>Nom</th>
+                <th>Quantité</th>
+                <th>État</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(item, idx) in annexFurnitureItems" :key="`${item.name}-${idx}`">
+                <td>{{ item.category }}</td>
+                <td>{{ item.name }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>{{ item.itemCondition }}</td>
+              </tr>
+            </tbody>
+          </table>
           <p>
             DPE:
             <strong>{{ data.annexes.dpe || 'annexé au présent bail.' }}</strong>
@@ -586,6 +619,24 @@ function exportPDF() {
 .revision-clause {
   font-size: 0.95rem;
   color: #555;
+}
+
+.furniture-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+}
+
+.furniture-table th,
+.furniture-table td {
+  border: 1px solid #ddd;
+  padding: 0.5rem;
+  text-align: left;
+  font-size: 0.92rem;
+}
+
+.furniture-table th {
+  background: #f6f6f6;
 }
 
 .lease-footer {

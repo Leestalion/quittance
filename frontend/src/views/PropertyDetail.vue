@@ -6,7 +6,7 @@ import { useLeasesStore } from '../stores/leases'
 import { useTenantsStore } from '../stores/tenants'
 import { useReceiptsStore } from '../stores/receipts'
 import { useOrganizationsStore } from '../stores/organizations'
-import type { Property } from '../types'
+import type { Property, FurnitureSet, FurnitureSetWithItems } from '../types'
 
 const route = useRoute()
 const router = useRouter()
@@ -22,6 +22,11 @@ const error = ref<string | null>(null)
 const showReceiptsDropdown = ref(false)
 
 const activeTab = ref<'info' | 'leases' | 'receipts'>('info')
+const furnitureSets = ref<FurnitureSet[]>([])
+const selectedFurnitureSetId = ref('')
+const selectedFurnitureSet = ref<FurnitureSetWithItems | null>(null)
+const furnitureSetForm = ref({ name: '', description: '' })
+const furnitureItemForm = ref({ category: '', name: '', quantity: 1, item_condition: '' })
 
 const leases = computed(() => {
   const propertyId = route.params.id as string
@@ -98,7 +103,15 @@ onMounted(async () => {
 
     // Fetch leases for this property
     await leasesStore.fetchLeases(propertyId)
-    
+
+    furnitureSets.value = await propertiesStore.listFurnitureSets(propertyId)
+    if (furnitureSets.value.length > 0) {
+      selectedFurnitureSetId.value = furnitureSets.value[0]?.id || ''
+      if (selectedFurnitureSetId.value) {
+        selectedFurnitureSet.value = await propertiesStore.getFurnitureSet(propertyId, selectedFurnitureSetId.value)
+      }
+    }
+
     // Load all tenants and receipts for all leases
     for (const lease of leases.value) {
       await tenantsStore.fetchTenant(lease.tenant_id)
@@ -135,6 +148,91 @@ async function deleteLease(leaseId: string) {
   } catch (err: any) {
     alert(err.message || 'Erreur lors de la suppression du bail')
   }
+}
+
+async function loadFurnitureSet() {
+  if (!property.value || !selectedFurnitureSetId.value) {
+    selectedFurnitureSet.value = null
+    return
+  }
+
+  selectedFurnitureSet.value = await propertiesStore.getFurnitureSet(
+    property.value.id,
+    selectedFurnitureSetId.value,
+  )
+}
+
+async function createFurnitureSet() {
+  if (!property.value || !furnitureSetForm.value.name.trim()) return
+
+  await propertiesStore.createFurnitureSet(property.value.id, {
+    name: furnitureSetForm.value.name,
+    description: furnitureSetForm.value.description || undefined,
+  })
+
+  furnitureSetForm.value = { name: '', description: '' }
+  furnitureSets.value = await propertiesStore.listFurnitureSets(property.value.id)
+  if (furnitureSets.value.length > 0) {
+    selectedFurnitureSetId.value = furnitureSets.value[0]?.id || ''
+    await loadFurnitureSet()
+  }
+}
+
+async function deleteFurnitureSet(setId: string) {
+  if (!property.value) return
+
+  await propertiesStore.deleteFurnitureSet(property.value.id, setId)
+  furnitureSets.value = await propertiesStore.listFurnitureSets(property.value.id)
+  if (selectedFurnitureSetId.value === setId) {
+    selectedFurnitureSetId.value = furnitureSets.value[0]?.id || ''
+    await loadFurnitureSet()
+  }
+}
+
+async function addFurnitureItem() {
+  if (!property.value || !selectedFurnitureSetId.value) return
+  if (!furnitureItemForm.value.category.trim() || !furnitureItemForm.value.name.trim() || !furnitureItemForm.value.item_condition.trim()) {
+    return
+  }
+
+  await propertiesStore.createFurnitureItem(property.value.id, selectedFurnitureSetId.value, {
+    category: furnitureItemForm.value.category,
+    name: furnitureItemForm.value.name,
+    quantity: furnitureItemForm.value.quantity,
+    item_condition: furnitureItemForm.value.item_condition,
+  })
+
+  furnitureItemForm.value = { category: '', name: '', quantity: 1, item_condition: '' }
+  await loadFurnitureSet()
+}
+
+async function updateFurnitureItem(itemId: string, field: 'category' | 'name' | 'quantity' | 'item_condition', value: string | number) {
+  if (!property.value || !selectedFurnitureSetId.value) return
+
+  await propertiesStore.updateFurnitureItem(property.value.id, selectedFurnitureSetId.value, itemId, {
+    [field]: value,
+  })
+
+  await loadFurnitureSet()
+}
+
+function updateFurnitureItemFromEvent(
+  itemId: string,
+  field: 'category' | 'name' | 'quantity' | 'item_condition',
+  event: Event,
+) {
+  const target = event.target as HTMLInputElement | null
+  if (!target) return
+
+  const value = field === 'quantity' ? Number(target.value) : target.value
+  updateFurnitureItem(itemId, field, value)
+}
+
+async function deleteFurnitureItem(itemId: string) {
+  if (!property.value || !selectedFurnitureSetId.value) return
+
+  await propertiesStore.deleteFurnitureItem(property.value.id, selectedFurnitureSetId.value, itemId)
+  await loadFurnitureSet()
 }
 
 async function deleteProperty() {
@@ -252,6 +350,58 @@ async function deleteProperty() {
           <div v-if="property.description" class="description">
             <strong>Description:</strong>
             <p>{{ property.description }}</p>
+          </div>
+
+          <div v-if="property.furnished" class="furniture-manager">
+            <h3>🪑 Sets de mobilier</h3>
+
+            <div class="furniture-create-set">
+              <input v-model="furnitureSetForm.name" type="text" placeholder="Nom du set (ex: T2 standard)" />
+              <input v-model="furnitureSetForm.description" type="text" placeholder="Description (optionnelle)" />
+              <button @click="createFurnitureSet" class="action-btn">Créer le set</button>
+            </div>
+
+            <div v-if="furnitureSets.length > 0" class="furniture-select-set">
+              <select v-model="selectedFurnitureSetId" @change="loadFurnitureSet">
+                <option v-for="set in furnitureSets" :key="set.id" :value="set.id">
+                  {{ set.name }}
+                </option>
+              </select>
+              <button @click="deleteFurnitureSet(selectedFurnitureSetId)" class="action-btn delete-btn">Supprimer le set</button>
+            </div>
+
+            <div v-if="selectedFurnitureSet" class="furniture-items">
+              <h4>Meubles du set "{{ selectedFurnitureSet.name }}"</h4>
+
+              <div class="furniture-add-item">
+                <input v-model="furnitureItemForm.category" type="text" placeholder="Catégorie (ex: Chambre)" />
+                <input v-model="furnitureItemForm.name" type="text" placeholder="Nom du meuble" />
+                <input v-model.number="furnitureItemForm.quantity" type="number" min="1" placeholder="Qté" />
+                <input v-model="furnitureItemForm.item_condition" type="text" placeholder="État (ex: Bon état)" />
+                <button @click="addFurnitureItem" class="action-btn">Ajouter</button>
+              </div>
+
+              <table v-if="selectedFurnitureSet.items.length > 0" class="furniture-table">
+                <thead>
+                  <tr>
+                    <th>Catégorie</th>
+                    <th>Nom</th>
+                    <th>Quantité</th>
+                    <th>État</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="item in selectedFurnitureSet.items" :key="item.id">
+                    <td><input :value="item.category" @change="updateFurnitureItemFromEvent(item.id, 'category', $event)" /></td>
+                    <td><input :value="item.name" @change="updateFurnitureItemFromEvent(item.id, 'name', $event)" /></td>
+                    <td><input :value="item.quantity" type="number" min="1" @change="updateFurnitureItemFromEvent(item.id, 'quantity', $event)" /></td>
+                    <td><input :value="item.item_condition" @change="updateFurnitureItemFromEvent(item.id, 'item_condition', $event)" /></td>
+                    <td><button @click="deleteFurnitureItem(item.id)" class="action-btn delete-btn">Supprimer</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
           
           <div class="danger-zone">
@@ -709,6 +859,42 @@ async function deleteProperty() {
   border-radius: 8px;
   cursor: pointer;
   font-size: 1rem;
+}
+
+.furniture-manager {
+  margin-top: 2rem;
+  padding: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+}
+
+.furniture-create-set,
+.furniture-select-set,
+.furniture-add-item {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.furniture-create-set input,
+.furniture-select-set select,
+.furniture-add-item input,
+.furniture-table input {
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+.furniture-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.furniture-table th,
+.furniture-table td {
+  border: 1px solid #eee;
+  padding: 0.5rem;
 }
 
 .danger-zone {

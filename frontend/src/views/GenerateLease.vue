@@ -7,7 +7,7 @@ import { useTenantsStore } from '../stores/tenants'
 import { useAuthStore } from '../stores/auth'
 import { useOrganizationsStore } from '../stores/organizations'
 import LeasePreview from '../components/LeasePreview.vue'
-import type { LeaseData } from '../types'
+import type { LeaseData, FurnitureSet, FurnitureSetWithItems } from '../types'
 
 const route = useRoute()
 const router = useRouter()
@@ -20,6 +20,8 @@ const organizationsStore = useOrganizationsStore()
 const loading = ref(false)
 const error = ref<string | null>(null)
 const showPreview = ref(false)
+const furnitureSets = ref<FurnitureSet[]>([])
+const selectedFurnitureSet = ref<FurnitureSetWithItems | null>(null)
 
 // Form data
 const formData = ref({
@@ -31,6 +33,7 @@ const formData = ref({
   deposit: 0,
   rent_revision: true,
   inventory_date: '',
+  furniture_set_id: '',
   furniture_inventory: '',
   dpe: '',
   erp: '',
@@ -102,6 +105,13 @@ const leaseData = computed<LeaseData | null>(() => {
     },
     annexes: {
       furnitureInventory: formData.value.furniture_inventory || undefined,
+      furnitureSetName: selectedFurnitureSet.value?.name,
+      furnitureItems: selectedFurnitureSet.value?.items.map(item => ({
+        category: item.category,
+        name: item.name,
+        quantity: item.quantity,
+        itemCondition: item.item_condition,
+      })),
       dpe: formData.value.dpe || undefined,
       erp: formData.value.erp || undefined,
       homeInsurance: formData.value.home_insurance || undefined,
@@ -130,12 +140,26 @@ onMounted(async () => {
     if (property.value.organization_id) {
       await organizationsStore.fetchOrganizationById(property.value.organization_id)
     }
+
+    furnitureSets.value = await propertiesStore.listFurnitureSets(propertyId.value)
   } catch (err: any) {
     error.value = err.message || 'Erreur lors du chargement'
   } finally {
     loading.value = false
   }
 })
+
+async function loadSelectedFurnitureSet() {
+  if (!formData.value.furniture_set_id) {
+    selectedFurnitureSet.value = null
+    return
+  }
+
+  selectedFurnitureSet.value = await propertiesStore.getFurnitureSet(
+    propertyId.value,
+    formData.value.furniture_set_id,
+  )
+}
 
 async function generateLease() {
   // Validate required fields
@@ -150,6 +174,8 @@ async function generateLease() {
     loading.value = true
     error.value = null
 
+    await loadSelectedFurnitureSet()
+
     // Save lease to backend
     const lease = await leasesStore.createLease({
       property_id: propertyId.value,
@@ -162,6 +188,7 @@ async function generateLease() {
       rent_revision: formData.value.rent_revision,
       annual_charges_regularization: false,
       inventory_date: formData.value.inventory_date || undefined,
+      furniture_set_id: formData.value.furniture_set_id || undefined,
       furniture_inventory: formData.value.furniture_inventory || undefined,
       dpe: formData.value.dpe || undefined,
       erp: formData.value.erp || undefined,
@@ -276,7 +303,20 @@ function back() {
         <h3>Annexes et mentions légales</h3>
 
         <div v-if="property?.furnished" class="form-group">
-          <label for="furnitureInventory">Inventaire du mobilier (bail meublé)</label>
+          <label for="furnitureSet">Set de mobilier (optionnel)</label>
+          <select id="furnitureSet" v-model="formData.furniture_set_id" @change="loadSelectedFurnitureSet">
+            <option value="">-- Aucun set sélectionné --</option>
+            <option v-for="set in furnitureSets" :key="set.id" :value="set.id">
+              {{ set.name }}
+            </option>
+          </select>
+          <small class="hint-text">
+            Vous pouvez créer/modifier des sets de mobilier dans la fiche de la propriété.
+          </small>
+        </div>
+
+        <div v-if="property?.furnished" class="form-group">
+          <label for="furnitureInventory">Inventaire libre complémentaire</label>
           <textarea
             id="furnitureInventory"
             v-model="formData.furniture_inventory"

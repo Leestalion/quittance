@@ -1,13 +1,14 @@
 use axum::{
     Router,
-    routing::get,
-    http::StatusCode,
+    routing::{get, get_service},
+    http::{StatusCode, header, HeaderValue},
     response::IntoResponse,
     Json,
 };
 use serde_json::json;
 use tower_http::services::ServeDir;
 use tower_http::cors::{CorsLayer, Any};
+use tower_http::set_header::SetResponseHeaderLayer;
 use std::net::SocketAddr;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -53,11 +54,23 @@ async fn main() {
     let frontend_path = std::env::var("FRONTEND_PATH")
         .unwrap_or_else(|_| "../frontend/dist".to_string());
 
+    let assets_path = format!("{}/assets", frontend_path);
+
+    // Serve hashed Vite assets with long-lived immutable cache.
+    let assets_service = get_service(ServeDir::new(&assets_path)).layer(
+        SetResponseHeaderLayer::if_not_present(
+            header::CACHE_CONTROL,
+            HeaderValue::from_static("public, max-age=31536000, immutable"),
+        ),
+    );
+
     // Main application router
     let app = Router::new()
         .nest("/api", api_router)
-        // Serve frontend static files with SPA fallback
-        .fallback_service(ServeDir::new(&frontend_path))
+        .nest_service("/assets", assets_service)
+        // SPA entrypoint: always return index.html for non-API/non-asset routes
+        .route("/", get(serve_spa_index))
+        .fallback(get(serve_spa_index))
         .layer(
             CorsLayer::new()
                 .allow_origin(Any)
@@ -84,4 +97,30 @@ async fn health_check() -> impl IntoResponse {
         "status": "ok",
         "message": "Quittance API is running"
     })))
+}
+
+// Serve SPA index with no-store cache to avoid stale HTML referencing old chunk hashes.
+async fn serve_spa_index() -> impl IntoResponse {
+    let frontend_path = std::env::var("FRONTEND_PATH")
+        .unwrap_or_else(|_| "../frontend/dist".to_string());
+    let index_path = format!("{}/index.html", frontend_path);
+
+    match tokio::fs::read_to_string(index_path).await {
+        Ok(html) => (
+            [
+                (header::CONTENT_TYPE, HeaderValue::from_static("text/html; charset=utf-8")),
+                (header::CACHE_CONTROL, HeaderValue::from_static("no-store, no-cache, must-revalidate")),
+            ],
+            html,
+        )
+            .into_response(),
+        Err(err) => {
+            tracing::error!("Failed to read frontend index.html: {}", err);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Frontend is not available. Build and copy frontend/dist.",
+            )
+                .into_response()
+        }
+    }
 }

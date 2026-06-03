@@ -7,7 +7,7 @@ import { useTenantsStore } from '../stores/tenants'
 import { useAuthStore } from '../stores/auth'
 import { useOrganizationsStore } from '../stores/organizations'
 import LeasePreview from '../components/LeasePreview.vue'
-import type { LeaseData } from '../types'
+import type { LeaseData, FurnitureSetWithItems } from '../types'
 
 const route = useRoute()
 const router = useRouter()
@@ -19,6 +19,7 @@ const organizationsStore = useOrganizationsStore()
 
 const loading = ref(true)
 const error = ref<string | null>(null)
+const selectedFurnitureSet = ref<FurnitureSetWithItems | null>(null)
 
 const leaseId = computed(() => route.params.leaseId as string)
 const propertyId = computed(() => route.params.propertyId as string)
@@ -72,6 +73,13 @@ const leaseData = computed<LeaseData | null>(() => {
     },
     annexes: {
       furnitureInventory: lease.value.furniture_inventory || undefined,
+      furnitureSetName: selectedFurnitureSet.value?.name,
+      furnitureItems: selectedFurnitureSet.value?.items?.map((item) => ({
+        category: item.category,
+        name: item.name,
+        quantity: item.quantity,
+        itemCondition: item.item_condition,
+      })),
       dpe: lease.value.dpe || undefined,
       erp: lease.value.erp || undefined,
       homeInsurance: lease.value.home_insurance || undefined,
@@ -99,6 +107,13 @@ onMounted(async () => {
     // Fetch tenant after lease is loaded
     if (lease.value) {
       await tenantsStore.fetchTenant(lease.value.tenant_id)
+
+      if (lease.value.furniture_set_id) {
+        selectedFurnitureSet.value = await propertiesStore.getFurnitureSet(
+          propertyId.value,
+          lease.value.furniture_set_id,
+        )
+      }
     }
 
     if (!lease.value) {

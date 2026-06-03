@@ -83,6 +83,55 @@ export interface Tenant {
   updated_at: string
 }
 
+export interface FurnitureSet {
+  id: string
+  property_id: string
+  name: string
+  description?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface FurnitureItem {
+  id: string
+  furniture_set_id: string
+  category: string
+  name: string
+  quantity: number
+  item_condition: string
+  created_at: string
+  updated_at: string
+}
+
+export interface FurnitureSetWithItems {
+  id: string
+  property_id: string
+  name: string
+  description?: string
+  created_at: string
+  updated_at: string
+  items: FurnitureItem[]
+}
+
+export interface CreateFurnitureSet {
+  name: string
+  description?: string
+}
+
+export interface CreateFurnitureItem {
+  category: string
+  name: string
+  quantity: number
+  item_condition: string
+}
+
+export interface UpdateFurnitureItem {
+  category?: string
+  name?: string
+  quantity?: number
+  item_condition?: string
+}
+
 export interface Lease {
   id: string
   property_id: string
@@ -96,6 +145,7 @@ export interface Lease {
   rent_revision: boolean
   annual_charges_regularization: boolean
   inventory_date?: string
+  furniture_set_id?: string
   furniture_inventory?: string
   dpe?: string
   erp?: string
@@ -172,6 +222,7 @@ export interface CreateLease {
   rent_revision: boolean
   annual_charges_regularization: boolean
   inventory_date?: string
+  furniture_set_id?: string
   furniture_inventory?: string
   dpe?: string
   erp?: string
@@ -253,6 +304,8 @@ export interface LeaseData {
   }
   annexes: {
     furnitureInventory?: string
+    furnitureSetName?: string
+    furnitureItems?: Array<{ category: string; name: string; quantity: number; itemCondition: string }>
     dpe?: string
     erp?: string
     homeInsurance?: string
