@@ -19,7 +19,7 @@ const organizationsStore = useOrganizationsStore()
 
 const loading = ref(true)
 const error = ref<string | null>(null)
-const selectedFurnitureSet = ref<FurnitureSetWithItems | null>(null)
+const selectedFurnitureSets = ref<FurnitureSetWithItems[]>([])
 
 const leaseId = computed(() => route.params.leaseId as string)
 const propertyId = computed(() => route.params.propertyId as string)
@@ -73,12 +73,14 @@ const leaseData = computed<LeaseData | null>(() => {
     },
     annexes: {
       furnitureInventory: lease.value.furniture_inventory || undefined,
-      furnitureSetName: selectedFurnitureSet.value?.name,
-      furnitureItems: selectedFurnitureSet.value?.items?.map((item) => ({
-        category: item.category,
-        name: item.name,
-        quantity: item.quantity,
-        itemCondition: item.item_condition,
+      furnitureSets: selectedFurnitureSets.value.map(set => ({
+        name: set.name,
+        items: set.items.map(item => ({
+          category: item.category,
+          name: item.name,
+          quantity: item.quantity,
+          itemCondition: item.item_condition,
+        }))
       })),
       dpe: lease.value.dpe || undefined,
       erp: lease.value.erp || undefined,
@@ -108,10 +110,11 @@ onMounted(async () => {
     if (lease.value) {
       await tenantsStore.fetchTenant(lease.value.tenant_id)
 
-      if (lease.value.furniture_set_id) {
-        selectedFurnitureSet.value = await propertiesStore.getFurnitureSet(
-          propertyId.value,
-          lease.value.furniture_set_id,
+      if (lease.value.furniture_set_ids.length > 0) {
+        selectedFurnitureSets.value = await Promise.all(
+          lease.value.furniture_set_ids.map(setId =>
+            propertiesStore.getFurnitureSet(propertyId.value, setId),
+          )
         )
       }
     }

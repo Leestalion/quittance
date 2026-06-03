@@ -40,7 +40,17 @@ const totalMonthly = computed(() =>
 
 const depositIsZero = computed(() => props.data.terms.deposit === 0)
 
-const annexFurnitureItems = computed(() => props.data.annexes.furnitureItems ?? [])
+const annexFurnitureItems = computed(() => {
+  return (props.data.annexes.furnitureSets ?? []).flatMap(furnitureSet =>
+    furnitureSet.items.map(item => ({
+      setName: furnitureSet.name,
+      category: item.category,
+      name: item.name,
+      quantity: item.quantity,
+      itemCondition: item.itemCondition,
+    }))
+  )
+})
 
 const formatCurrency = (amount: number) => {
   return amount.toLocaleString('fr-FR', {
@@ -58,7 +68,79 @@ function exportPDF() {
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
   const margin = 20
+  const bottomMargin = 20
   let y = 20
+
+  const ensureSpace = (requiredHeight: number) => {
+    if (y + requiredHeight > pageHeight - bottomMargin) {
+      doc.addPage()
+      y = 20
+    }
+  }
+
+  const drawFurnitureTable = (startY: number) => {
+    const tableWidth = pageWidth - (2 * margin)
+    const columns = [
+      { key: 'setName', label: 'Set', width: tableWidth * 0.2 },
+      { key: 'category', label: 'Categorie', width: tableWidth * 0.2 },
+      { key: 'name', label: 'Nom', width: tableWidth * 0.33 },
+      { key: 'quantity', label: 'Qte', width: tableWidth * 0.1 },
+      { key: 'itemCondition', label: 'Etat', width: tableWidth * 0.17 },
+    ] as const
+    const lineHeight = 4
+    const cellPadding = 1.5
+    const headerHeight = 7
+    let currentY = startY
+
+    const drawHeader = () => {
+      let x = margin
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(9)
+      for (const column of columns) {
+        doc.rect(x, currentY, column.width, headerHeight)
+        doc.text(column.label, x + cellPadding, currentY + 4.6)
+        x += column.width
+      }
+      currentY += headerHeight
+    }
+
+    if (currentY + headerHeight > pageHeight - bottomMargin) {
+      doc.addPage()
+      currentY = 20
+    }
+
+    drawHeader()
+
+    for (const item of annexFurnitureItems.value) {
+      const cellLines = columns.map((column) => {
+        const raw = String(item[column.key])
+        return doc.splitTextToSize(raw, column.width - (2 * cellPadding)) as string[]
+      })
+
+      const maxLines = Math.max(...cellLines.map(lines => lines.length))
+      const rowHeight = Math.max(6, (maxLines * lineHeight) + (2 * cellPadding))
+
+      if (currentY + rowHeight > pageHeight - bottomMargin) {
+        doc.addPage()
+        currentY = 20
+        drawHeader()
+      }
+
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(9)
+      let x = margin
+      columns.forEach((column, i) => {
+        const lines = cellLines[i] || ['']
+        doc.rect(x, currentY, column.width, rowHeight)
+        doc.text(lines, x + cellPadding, currentY + cellPadding + 3)
+        x += column.width
+      })
+
+      currentY += rowHeight
+    }
+
+    return currentY + 4
+  }
 
   // Title
   doc.setFontSize(18)
@@ -241,25 +323,34 @@ function exportPDF() {
   y += 6
   doc.setFont('helvetica', 'normal')
 
-  const annexLines: string[] = []
+  const furnitureAnnexLines: string[] = []
+  const legalAnnexLines: string[] = []
   if (props.data.property.type === 'furnished') {
-    annexLines.push(`- Set mobilier sélectionné: ${props.data.annexes.furnitureSetName || 'non précisé.'}`)
-    annexLines.push(`- Inventaire du mobilier: ${props.data.annexes.furnitureInventory || 'annexé au présent bail meublé.'}`)
+    furnitureAnnexLines.push(`- Inventaire du mobilier: ${props.data.annexes.furnitureInventory || 'annexé au présent bail meublé.'}`)
 
     if (annexFurnitureItems.value.length > 0) {
-      annexLines.push('- Mobilier détaillé (catégorie | nom | quantité | état):')
-      for (const item of annexFurnitureItems.value) {
-        annexLines.push(`  ${item.category} | ${item.name} | ${item.quantity} | ${item.itemCondition}`)
-      }
+      furnitureAnnexLines.push('- Le mobilier détaillé est présenté dans le tableau ci-dessous.')
     }
   }
-  annexLines.push(`- DPE: ${props.data.annexes.dpe || 'annexé au présent bail.'}`)
-  annexLines.push(`- ERP: ${props.data.annexes.erp || 'annexé au présent bail.'}`)
-  annexLines.push(`- Assurance habitation: ${props.data.annexes.homeInsurance || 'le locataire s\'engage à justifier d\'une assurance des risques locatifs à l\'entrée dans les lieux puis chaque année.'}`)
-  annexLines.push(`- Notice d'information légale locataire: ${props.data.annexes.legalNoticeProvided ? 'remise au locataire.' : 'non remise à ce jour.'}`)
+  legalAnnexLines.push(`- DPE: ${props.data.annexes.dpe || 'annexé au présent bail.'}`)
+  legalAnnexLines.push(`- ERP: ${props.data.annexes.erp || 'annexé au présent bail.'}`)
+  legalAnnexLines.push(`- Assurance habitation: ${props.data.annexes.homeInsurance || 'le locataire s\'engage à justifier d\'une assurance des risques locatifs à l\'entrée dans les lieux puis chaque année.'}`)
+  legalAnnexLines.push(`- Notice d'information légale locataire: ${props.data.annexes.legalNoticeProvided ? 'remise au locataire.' : 'non remise à ce jour.'}`)
 
-  for (const line of annexLines) {
+  for (const line of furnitureAnnexLines) {
     const wrapped = doc.splitTextToSize(line, pageWidth - 2 * margin)
+    ensureSpace(wrapped.length * 5 + 2)
+    doc.text(wrapped, margin, y)
+    y += wrapped.length * 5 + 1
+  }
+
+  if (props.data.property.type === 'furnished' && annexFurnitureItems.value.length > 0) {
+    y = drawFurnitureTable(y)
+  }
+
+  for (const line of legalAnnexLines) {
+    const wrapped = doc.splitTextToSize(line, pageWidth - 2 * margin)
+    ensureSpace(wrapped.length * 5 + 2)
     doc.text(wrapped, margin, y)
     y += wrapped.length * 5 + 1
   }
@@ -413,10 +504,6 @@ function exportPDF() {
         <article class="lease-article">
           <h3>Article 6 - Annexes et mentions légales</h3>
           <p v-if="data.property.type === 'furnished'">
-            Set mobilier sélectionné:
-            <strong>{{ data.annexes.furnitureSetName || 'non précisé.' }}</strong>
-          </p>
-          <p v-if="data.property.type === 'furnished'">
             Inventaire du mobilier:
             <strong>{{ data.annexes.furnitureInventory || 'annexé au présent bail meublé.' }}</strong>
           </p>
@@ -424,6 +511,7 @@ function exportPDF() {
           <table v-if="annexFurnitureItems.length > 0" class="furniture-table">
             <thead>
               <tr>
+                <th>Set</th>
                 <th>Catégorie</th>
                 <th>Nom</th>
                 <th>Quantité</th>
@@ -432,6 +520,7 @@ function exportPDF() {
             </thead>
             <tbody>
               <tr v-for="(item, idx) in annexFurnitureItems" :key="`${item.name}-${idx}`">
+                <td>{{ item.setName }}</td>
                 <td>{{ item.category }}</td>
                 <td>{{ item.name }}</td>
                 <td>{{ item.quantity }}</td>
