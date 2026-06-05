@@ -20,6 +20,7 @@ const organizationsStore = useOrganizationsStore()
 const loading = ref(false)
 const error = ref<string | null>(null)
 const showPreview = ref(false)
+const generatedLeaseId = ref<string | null>(null)
 const furnitureSets = ref<FurnitureSet[]>([])
 const selectedFurnitureSets = ref<FurnitureSetWithItems[]>([])
 
@@ -49,6 +50,7 @@ const allTenants = computed(() => tenantsStore.tenants)
 const selectedTenant = computed(() => 
   tenantsStore.getTenantById(formData.value.tenant_id)
 )
+const isEditMode = computed(() => generatedLeaseId.value !== null)
 
 const leaseData = computed<LeaseData | null>(() => {
   if (!property.value || !selectedTenant.value) return null
@@ -185,8 +187,7 @@ async function generateLease() {
 
     await loadSelectedFurnitureSet()
 
-    // Save lease to backend
-    const lease = await leasesStore.createLease({
+    const payload = {
       property_id: propertyId.value,
       tenant_id: formData.value.tenant_id,
       start_date: formData.value.start_date || '',
@@ -205,7 +206,13 @@ async function generateLease() {
       erp: formData.value.erp || undefined,
       home_insurance: formData.value.home_insurance || undefined,
       legal_notice_provided: formData.value.legal_notice_provided
-    })
+    }
+
+    const lease = generatedLeaseId.value
+      ? await leasesStore.updateLease(generatedLeaseId.value, payload)
+      : await leasesStore.createLease(payload)
+
+    generatedLeaseId.value = lease.id
 
     console.log('Lease created:', lease);
 
@@ -239,9 +246,13 @@ function back() {
 
   <div v-else-if="!showPreview" class="generate-lease">
     <div class="header">
-      <h1>Créer un nouveau bail</h1>
+      <h1>{{ isEditMode ? 'Modifier le bail généré' : 'Créer un nouveau bail' }}</h1>
       <button @click="back" class="btn-secondary">← Retour</button>
     </div>
+
+    <p v-if="isEditMode" class="edit-mode-note">
+      Mode édition actif: les modifications mettront à jour le bail déjà créé au lieu d'en créer un nouveau.
+    </p>
 
     <div class="card">
       <h2>Informations de la propriété</h2>
@@ -400,8 +411,8 @@ function back() {
           </label>
         </div>
 
-        <button type="submit" class="btn-primary" :disabled="!formData.tenant_id">
-          📄 Créer le bail et générer le PDF
+        <button type="submit" class="btn-primary" :disabled="!formData.tenant_id || loading">
+          {{ isEditMode ? '💾 Mettre à jour le bail et régénérer le PDF' : '📄 Créer le bail et générer le PDF' }}
         </button>
       </form>
     </div>
@@ -418,6 +429,15 @@ function back() {
 .generate-lease {
   max-width: 800px;
   margin: 0 auto;
+}
+
+.edit-mode-note {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: #e8f5e9;
+  color: #1b5e20;
+  font-weight: 500;
 }
 
 .header {

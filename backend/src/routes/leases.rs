@@ -16,7 +16,7 @@ struct LeaseQuery {
 pub fn router() -> Router<Database> {
     Router::new()
         .route("/", get(list_leases).post(create_lease))
-        .route("/:id", get(get_lease).delete(delete_lease))
+    .route("/:id", get(get_lease).put(update_lease).delete(delete_lease))
 }
 
 async fn fetch_lease_by_id(db: &Database, id: Uuid) -> Result<Lease, AppError> {
@@ -174,6 +174,103 @@ async fn get_lease(
     Path(id): Path<Uuid>,
 ) -> Result<Json<Lease>, AppError> {
     Ok(Json(fetch_lease_by_id(&db, id).await?))
+}
+
+async fn update_lease(
+    State(db): State<Database>,
+    Path(id): Path<Uuid>,
+    Json(data): Json<CreateLease>,
+) -> Result<Json<Lease>, AppError> {
+    let end_date = data.start_date + chrono::Months::new(data.duration_months as u32);
+
+    let mut tx = db.pool.begin().await?;
+
+    if !data.furniture_set_ids.is_empty() {
+        let matched_count = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(DISTINCT id) FROM furniture_sets WHERE property_id = $1 AND id = ANY($2)"
+        )
+        .bind(data.property_id)
+        .bind(&data.furniture_set_ids)
+        .fetch_one(&mut *tx)
+        .await?;
+
+        if matched_count != data.furniture_set_ids.len() as i64 {
+            return Err(AppError::BadRequest("One or more furniture sets do not belong to the selected property".to_string()));
+        }
+    }
+
+    let primary_furniture_set_id = data.furniture_set_ids.first().copied();
+
+    let updated_id = sqlx::query_scalar::<_, Uuid>(
+        r#"
+        UPDATE leases
+        SET
+            property_id = $2,
+            tenant_id = $3,
+            start_date = $4,
+            end_date = $5,
+            duration_months = $6,
+            monthly_rent = $7,
+            charges = $8,
+            deposit = $9,
+            rent_revision = $10,
+            annual_charges_regularization = $11,
+            inventory_date = $12,
+            private_room_label = $13,
+            shared_areas_text = $14,
+            furniture_set_id = $15,
+            furniture_inventory = $16,
+            dpe = $17,
+            erp = $18,
+            home_insurance = $19,
+            legal_notice_provided = $20,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+        RETURNING id
+        "#
+    )
+    .bind(id)
+    .bind(data.property_id)
+    .bind(data.tenant_id)
+    .bind(data.start_date)
+    .bind(end_date)
+    .bind(data.duration_months)
+    .bind(data.monthly_rent)
+    .bind(data.charges)
+    .bind(data.deposit)
+    .bind(data.rent_revision)
+    .bind(data.annual_charges_regularization)
+    .bind(data.inventory_date)
+    .bind(data.private_room_label)
+    .bind(data.shared_areas_text)
+    .bind(primary_furniture_set_id)
+    .bind(data.furniture_inventory)
+    .bind(data.dpe)
+    .bind(data.erp)
+    .bind(data.home_insurance)
+    .bind(data.legal_notice_provided)
+    .fetch_optional(&mut *tx)
+    .await?
+    .ok_or_else(|| AppError::NotFound(format!("Lease with id {} not found", id)))?;
+
+    sqlx::query("DELETE FROM lease_furniture_sets WHERE lease_id = $1")
+        .bind(updated_id)
+        .execute(&mut *tx)
+        .await?;
+
+    for furniture_set_id in &data.furniture_set_ids {
+        sqlx::query(
+            "INSERT INTO lease_furniture_sets (lease_id, furniture_set_id) VALUES ($1, $2) ON CONFLICT DO NOTHING"
+        )
+        .bind(updated_id)
+        .bind(furniture_set_id)
+        .execute(&mut *tx)
+        .await?;
+    }
+
+    tx.commit().await?;
+
+    Ok(Json(fetch_lease_by_id(&db, updated_id).await?))
 }
 
 async fn delete_lease(
