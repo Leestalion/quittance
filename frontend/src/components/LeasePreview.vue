@@ -60,7 +60,6 @@ const colocationClause = computed(() => {
 const annexFurnitureItems = computed(() => {
   return (props.data.annexes.furnitureSets ?? []).flatMap(furnitureSet =>
     furnitureSet.items.map(item => ({
-      setName: furnitureSet.name,
       category: item.category,
       name: item.name,
       quantity: item.quantity,
@@ -98,11 +97,10 @@ function exportPDF() {
   const drawFurnitureTable = (startY: number) => {
     const tableWidth = pageWidth - (2 * margin)
     const columns = [
-      { key: 'setName', label: 'Set', width: tableWidth * 0.2 },
-      { key: 'category', label: 'Categorie', width: tableWidth * 0.2 },
-      { key: 'name', label: 'Nom', width: tableWidth * 0.33 },
-      { key: 'quantity', label: 'Qte', width: tableWidth * 0.1 },
-      { key: 'itemCondition', label: 'Etat', width: tableWidth * 0.17 },
+      { key: 'category', label: 'Categorie', width: tableWidth * 0.24 },
+      { key: 'name', label: 'Nom', width: tableWidth * 0.41 },
+      { key: 'quantity', label: 'Qte', width: tableWidth * 0.12 },
+      { key: 'itemCondition', label: 'Etat', width: tableWidth * 0.23 },
     ] as const
     const lineHeight = 4
     const cellPadding = 1.5
@@ -540,7 +538,6 @@ function exportPDF() {
           <table v-if="annexFurnitureItems.length > 0" class="furniture-table">
             <thead>
               <tr>
-                <th>Set</th>
                 <th>Catégorie</th>
                 <th>Nom</th>
                 <th>Quantité</th>
@@ -549,7 +546,6 @@ function exportPDF() {
             </thead>
             <tbody>
               <tr v-for="(item, idx) in annexFurnitureItems" :key="`${item.name}-${idx}`">
-                <td>{{ item.setName }}</td>
                 <td>{{ item.category }}</td>
                 <td>{{ item.name }}</td>
                 <td>{{ item.quantity }}</td>
