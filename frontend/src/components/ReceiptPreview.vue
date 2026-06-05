@@ -30,6 +30,16 @@ const formattedPaymentDate = computed(() => {
   })
 })
 
+const coveredPeriodLabel = computed(() => {
+  if (!props.data.rent.coveredFrom || !props.data.rent.coveredTo) {
+    return `1er au dernier jour du mois de ${periodLabel.value}`
+  }
+
+  const from = new Date(props.data.rent.coveredFrom).toLocaleDateString('fr-FR')
+  const to = new Date(props.data.rent.coveredTo).toLocaleDateString('fr-FR')
+  return `${from} au ${to}`
+})
+
 const totalRent = computed(() => props.data.rent.baseRent + props.data.rent.charges)
 
 const formatCurrency = (amount: number) => {
@@ -117,7 +127,7 @@ function exportPDF() {
 
   // Main text
   doc.setFontSize(11)
-  const mainText = `Je soussigné(e) ${props.data.landlord.name}, propriétaire du logement désigné ci-dessus, déclare avoir reçu de ${props.data.tenant.name} la somme de ${formatCurrency(totalRent.value)} au titre du paiement du loyer et des charges pour la période du 1er au dernier jour du mois de ${periodLabel.value}.`
+  const mainText = `Je soussigné(e) ${props.data.landlord.name}, propriétaire du logement désigné ci-dessus, déclare avoir reçu de ${props.data.tenant.name} la somme de ${formatCurrency(totalRent.value)} au titre du paiement du loyer et des charges pour la période du ${coveredPeriodLabel.value}.`
   const mainTextLines = doc.splitTextToSize(mainText, pageWidth - 2 * margin)
   doc.text(mainTextLines, margin, y)
   y += mainTextLines.length * 6 + 10
@@ -135,6 +145,18 @@ function exportPDF() {
   y += 2
   doc.line(tableX, y, tableX + 70, y)
   y += 7
+
+  if (props.data.rent.isPartial && props.data.rent.coveredDays && props.data.rent.daysInMonth) {
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    doc.text(
+      `Prorata applique: ${props.data.rent.coveredDays}/${props.data.rent.daysInMonth} jours`,
+      tableX,
+      y,
+    )
+    y += 7
+    doc.setFontSize(11)
+  }
   
   doc.setFont('helvetica', 'bold')
   doc.text('Total', tableX, y)
@@ -221,7 +243,11 @@ function exportPDF() {
           Je soussigné(e) <strong>{{ data.landlord.name }}</strong>, propriétaire du logement
           désigné ci-dessus, déclare avoir reçu de <strong>{{ data.tenant.name }}</strong>
           la somme de <strong>{{ formatCurrency(totalRent) }}</strong> au titre du paiement
-          du loyer et des charges pour la période du <strong>1er au dernier jour du mois de {{ periodLabel }}</strong>.
+          du loyer et des charges pour la période du <strong>{{ coveredPeriodLabel }}</strong>.
+        </p>
+
+        <p v-if="data.rent.isPartial && data.rent.coveredDays && data.rent.daysInMonth" class="partial-note">
+          Quittance partielle calculée au prorata: {{ data.rent.coveredDays }} / {{ data.rent.daysInMonth }} jours.
         </p>
 
         <table class="rent-details">
@@ -457,6 +483,16 @@ function exportPDF() {
   font-style: italic;
   border-left: 3px solid #ddd;
   padding-left: 1rem;
+
+.partial-note {
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: #eef6ff;
+  border: 1px solid #c8ddf7;
+  border-radius: 6px;
+  color: #1e3a8a;
+  font-weight: 500;
+}
   margin-top: 1.5rem;
 }
 

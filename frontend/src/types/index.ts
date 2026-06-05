@@ -275,6 +275,12 @@ export interface ReceiptData {
     charges: number
     period: { month: number; year: number }
     paymentDate: string
+    coveredFrom?: string
+    coveredTo?: string
+    coveredDays?: number
+    daysInMonth?: number
+    isPartial?: boolean
+    prorationRatio?: number
   }
 }
 

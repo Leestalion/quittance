@@ -40,6 +40,69 @@ const tenant = computed(() => {
   return tenantsStore.getTenantById(lease.value.tenant_id)
 })
 
+const monthCoverage = computed(() => {
+  if (!lease.value) return null
+
+  const monthStart = new Date(period.value.year, period.value.month - 1, 1)
+  const monthEnd = new Date(period.value.year, period.value.month, 0)
+  const leaseStart = new Date(lease.value.start_date)
+  const leaseEnd = lease.value.end_date ? new Date(lease.value.end_date) : null
+
+  const coveredFrom = leaseStart > monthStart ? leaseStart : monthStart
+  const coveredTo = leaseEnd && leaseEnd < monthEnd ? leaseEnd : monthEnd
+
+  if (coveredFrom > coveredTo) {
+    return {
+      valid: false,
+      coveredDays: 0,
+      daysInMonth: monthEnd.getDate(),
+      ratio: 0,
+      coveredFrom,
+      coveredTo,
+      isPartial: true,
+    }
+  }
+
+  const MS_PER_DAY = 24 * 60 * 60 * 1000
+  const coveredDays = Math.floor((coveredTo.getTime() - coveredFrom.getTime()) / MS_PER_DAY) + 1
+  const daysInMonth = monthEnd.getDate()
+  const ratio = coveredDays / daysInMonth
+
+  return {
+    valid: true,
+    coveredDays,
+    daysInMonth,
+    ratio,
+    coveredFrom,
+    coveredTo,
+    isPartial: coveredDays < daysInMonth,
+  }
+})
+
+const proratedAmounts = computed(() => {
+  if (!lease.value || !monthCoverage.value || !monthCoverage.value.valid) {
+    return {
+      baseRent: 0,
+      charges: 0,
+    }
+  }
+
+  const ratio = monthCoverage.value.ratio
+  const rounded = (value: number) => Math.round(value * 100) / 100
+
+  return {
+    baseRent: rounded(Number(lease.value.monthly_rent) * ratio),
+    charges: rounded(Number(lease.value.charges) * ratio),
+  }
+})
+
+const coverageLabel = computed(() => {
+  if (!monthCoverage.value || !monthCoverage.value.valid) return ''
+
+  const formatDate = (value: Date) => value.toLocaleDateString('fr-FR')
+  return `${formatDate(monthCoverage.value.coveredFrom)} au ${formatDate(monthCoverage.value.coveredTo)}`
+})
+
 const receiptData = computed<ReceiptData | null>(() => {
   if (!lease.value || !property.value || !tenant.value) return null
 
@@ -71,10 +134,16 @@ const receiptData = computed<ReceiptData | null>(() => {
       address: property.value.address
     },
     rent: {
-      baseRent: Number(lease.value.monthly_rent),
-      charges: Number(lease.value.charges),
+      baseRent: proratedAmounts.value.baseRent,
+      charges: proratedAmounts.value.charges,
       period: period.value,
-      paymentDate: paymentDate.value || ""
+      paymentDate: paymentDate.value || "",
+      coveredFrom: monthCoverage.value?.valid ? monthCoverage.value.coveredFrom.toISOString().split('T')[0] : undefined,
+      coveredTo: monthCoverage.value?.valid ? monthCoverage.value.coveredTo.toISOString().split('T')[0] : undefined,
+      coveredDays: monthCoverage.value?.coveredDays,
+      daysInMonth: monthCoverage.value?.daysInMonth,
+      isPartial: monthCoverage.value?.isPartial,
+      prorationRatio: monthCoverage.value?.ratio,
     }
   }
 })
@@ -109,7 +178,10 @@ onMounted(async () => {
 })
 
 async function generateReceipt() {
-  if (!receiptData.value) return
+  if (!receiptData.value || !monthCoverage.value?.valid) {
+    error.value = 'La période sélectionnée ne chevauche pas la durée du bail.'
+    return
+  }
 
   try {
     // Save receipt to backend
@@ -192,7 +264,30 @@ function back() {
           <input type="date" id="paymentDate" v-model="paymentDate" required />
         </div>
 
-        <button type="submit" class="btn-primary">
+        <div class="proration-summary" :class="{ invalid: monthCoverage && !monthCoverage.valid }">
+          <template v-if="monthCoverage && monthCoverage.valid">
+            <p class="proration-title">
+              {{ monthCoverage.isPartial ? 'Quittance partielle (prorata)' : 'Quittance mensuelle complète' }}
+            </p>
+            <p class="proration-line">
+              Période couverte: <strong>{{ coverageLabel }}</strong>
+            </p>
+            <p class="proration-line">
+              Jours facturés: <strong>{{ monthCoverage.coveredDays }} / {{ monthCoverage.daysInMonth }}</strong>
+              <span v-if="monthCoverage.isPartial">({{ (monthCoverage.ratio * 100).toFixed(2) }}%)</span>
+            </p>
+            <p class="proration-line">
+              Montant quittance: <strong>{{ proratedAmounts.baseRent.toFixed(2) }} €</strong>
+              + Charges <strong>{{ proratedAmounts.charges.toFixed(2) }} €</strong>
+            </p>
+          </template>
+          <template v-else>
+            <p class="proration-title">Période hors bail</p>
+            <p class="proration-line">Le mois sélectionné n'est pas couvert par ce bail.</p>
+          </template>
+        </div>
+
+        <button type="submit" class="btn-primary" :disabled="!monthCoverage?.valid">
           📄 Générer la quittance PDF
         </button>
       </form>
@@ -304,6 +399,35 @@ function back() {
   background: white;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.proration-summary {
+  padding: 1rem;
+  border-radius: 8px;
+  background: #eef6ff;
+  border: 1px solid #c8ddf7;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.proration-summary.invalid {
+  background: #fff1f2;
+  border-color: #fecdd3;
+}
+
+.proration-title {
+  margin: 0;
+  font-weight: 700;
+  color: #1e3a8a;
+}
+
+.proration-summary.invalid .proration-title {
+  color: #9f1239;
+}
+
+.proration-line {
+  margin: 0;
+  color: #334155;
 }
 
 @media (prefers-color-scheme: dark) {

@@ -5,6 +5,7 @@ use axum::{
     Json,
 };
 use bigdecimal::{BigDecimal, num_traits::Signed};
+use chrono::NaiveDate;
 use serde::Deserialize;
 use uuid::Uuid;
 use crate::db::Database;
@@ -20,6 +21,24 @@ pub fn router() -> Router<Database> {
 #[derive(Debug, Deserialize)]
 struct ReceiptQuery {
     lease_id: Option<Uuid>,
+}
+
+fn month_bounds(period_year: i32, period_month: i32) -> Result<(NaiveDate, NaiveDate), AppError> {
+    let start = NaiveDate::from_ymd_opt(period_year, period_month as u32, 1)
+        .ok_or_else(|| AppError::Validation("Invalid receipt period".to_string()))?;
+
+    let next_month = if period_month == 12 {
+        NaiveDate::from_ymd_opt(period_year + 1, 1, 1)
+    } else {
+        NaiveDate::from_ymd_opt(period_year, period_month as u32 + 1, 1)
+    }
+    .ok_or_else(|| AppError::Validation("Invalid receipt period".to_string()))?;
+
+    let end = next_month
+        .pred_opt()
+        .ok_or_else(|| AppError::Validation("Invalid receipt period".to_string()))?;
+
+    Ok((start, end))
 }
 
 async fn list_receipts(
@@ -81,16 +100,29 @@ async fn create_receipt(
         return Err(AppError::Validation("Rent amounts cannot be negative".to_string()));
     }
 
-    // Check if lease exists
-    let lease_exists = sqlx::query_scalar!(
-        "SELECT EXISTS(SELECT 1 FROM leases WHERE id = $1)",
-        payload.lease_id
+    // Check if lease exists and period overlaps lease dates
+    let lease_dates = sqlx::query_as::<_, (NaiveDate, Option<NaiveDate>)>(
+        "SELECT start_date, end_date FROM leases WHERE id = $1"
     )
-    .fetch_one(&db.pool)
+    .bind(payload.lease_id)
+    .fetch_optional(&db.pool)
     .await?;
 
-    if !lease_exists.unwrap_or(false) {
+    let Some(lease_dates) = lease_dates else {
         return Err(AppError::NotFound("Lease not found".to_string()));
+    };
+
+    let (period_start, period_end) = month_bounds(payload.period_year, payload.period_month)?;
+    let lease_start = lease_dates.0;
+    let lease_end = lease_dates.1.unwrap_or(period_end);
+
+    if lease_start > period_end || lease_end < period_start {
+        return Err(AppError::Validation(
+            format!(
+                "Receipt period {}/{} is outside lease dates",
+                payload.period_month, payload.period_year
+            )
+        ));
     }
 
     // Check if receipt for this period already exists (unique constraint)
