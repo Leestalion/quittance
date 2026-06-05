@@ -19,6 +19,54 @@ pub fn router() -> Router<Database> {
     .route("/:id", get(get_lease).put(update_lease).delete(delete_lease))
 }
 
+async fn ensure_property_access(db: &Database, property_id: Uuid, user_id: Uuid) -> Result<(), AppError> {
+    let exists = sqlx::query_scalar::<_, Option<bool>>(
+        r#"
+        SELECT EXISTS(
+            SELECT 1 FROM properties p
+            LEFT JOIN organization_members om ON p.organization_id = om.organization_id
+            WHERE p.id = $1 AND (p.user_id = $2 OR om.user_id = $2)
+        )
+        "#,
+    )
+    .bind(property_id)
+    .bind(user_id)
+    .fetch_one(&db.pool)
+    .await?
+    .unwrap_or(false);
+
+    if exists {
+        Ok(())
+    } else {
+        Err(AppError::NotFound(format!("Property with id {} not found", property_id)))
+    }
+}
+
+async fn ensure_lease_access(db: &Database, lease_id: Uuid, user_id: Uuid) -> Result<(), AppError> {
+    let exists = sqlx::query_scalar::<_, Option<bool>>(
+        r#"
+        SELECT EXISTS(
+            SELECT 1
+            FROM leases l
+            JOIN properties p ON l.property_id = p.id
+            LEFT JOIN organization_members om ON p.organization_id = om.organization_id
+            WHERE l.id = $1 AND (p.user_id = $2 OR om.user_id = $2)
+        )
+        "#,
+    )
+    .bind(lease_id)
+    .bind(user_id)
+    .fetch_one(&db.pool)
+    .await?
+    .unwrap_or(false);
+
+    if exists {
+        Ok(())
+    } else {
+        Err(AppError::NotFound(format!("Lease with id {} not found", lease_id)))
+    }
+}
+
 async fn fetch_lease_by_id(db: &Database, id: Uuid) -> Result<Lease, AppError> {
     let lease = sqlx::query_as::<_, Lease>(
         r#"
@@ -72,8 +120,18 @@ async fn list_leases(
     let user_id = extract_user_id_from_headers(&headers)?;
 
     let lease_id_rows = if let Some(property_id) = params.property_id {
+        ensure_property_access(&db, property_id, user_id).await?;
+
         sqlx::query_as::<_, (Uuid,)>(
-            "SELECT l.id FROM leases l JOIN properties p ON l.property_id = p.id WHERE l.property_id = $1 AND p.user_id = $2 ORDER BY l.start_date DESC"
+            r#"
+            SELECT DISTINCT l.id
+            FROM leases l
+            JOIN properties p ON l.property_id = p.id
+            LEFT JOIN organization_members om ON p.organization_id = om.organization_id
+            WHERE l.property_id = $1
+              AND (p.user_id = $2 OR om.user_id = $2)
+            ORDER BY l.start_date DESC
+            "#
         )
         .bind(property_id)
         .bind(user_id)
@@ -81,7 +139,14 @@ async fn list_leases(
         .await?
     } else {
         sqlx::query_as::<_, (Uuid,)>(
-            "SELECT l.id FROM leases l JOIN properties p ON l.property_id = p.id WHERE p.user_id = $1 ORDER BY l.start_date DESC"
+            r#"
+            SELECT DISTINCT l.id
+            FROM leases l
+            JOIN properties p ON l.property_id = p.id
+            LEFT JOIN organization_members om ON p.organization_id = om.organization_id
+            WHERE p.user_id = $1 OR om.user_id = $1
+            ORDER BY l.start_date DESC
+            "#
         )
         .bind(user_id)
         .fetch_all(&db.pool)
@@ -100,8 +165,12 @@ async fn list_leases(
 
 async fn create_lease(
     State(db): State<Database>,
+    headers: HeaderMap,
     Json(data): Json<CreateLease>,
 ) -> Result<(StatusCode, Json<Lease>), AppError> {
+    let user_id = extract_user_id_from_headers(&headers)?;
+    ensure_property_access(&db, data.property_id, user_id).await?;
+
     // Calculate end_date based on start_date + duration_months
     let end_date = data.start_date + chrono::Months::new(data.duration_months as u32);
 
@@ -171,16 +240,25 @@ async fn create_lease(
 
 async fn get_lease(
     State(db): State<Database>,
+    headers: HeaderMap,
     Path(id): Path<Uuid>,
 ) -> Result<Json<Lease>, AppError> {
+    let user_id = extract_user_id_from_headers(&headers)?;
+    ensure_lease_access(&db, id, user_id).await?;
+
     Ok(Json(fetch_lease_by_id(&db, id).await?))
 }
 
 async fn update_lease(
     State(db): State<Database>,
+    headers: HeaderMap,
     Path(id): Path<Uuid>,
     Json(data): Json<CreateLease>,
 ) -> Result<Json<Lease>, AppError> {
+    let user_id = extract_user_id_from_headers(&headers)?;
+    ensure_lease_access(&db, id, user_id).await?;
+    ensure_property_access(&db, data.property_id, user_id).await?;
+
     let end_date = data.start_date + chrono::Months::new(data.duration_months as u32);
 
     let mut tx = db.pool.begin().await?;
@@ -275,19 +353,11 @@ async fn update_lease(
 
 async fn delete_lease(
     State(db): State<Database>,
+    headers: HeaderMap,
     Path(id): Path<Uuid>,
 ) -> Result<StatusCode, AppError> {
-    // Check if lease exists
-    let exists = sqlx::query_scalar::<_, Option<bool>>(
-        "SELECT EXISTS(SELECT 1 FROM leases WHERE id = $1)"
-    )
-    .bind(id)
-    .fetch_one(&db.pool)
-    .await?;
-
-    if !exists.unwrap_or(false) {
-        return Err(AppError::NotFound(format!("Lease with id {} not found", id)));
-    }
+    let user_id = extract_user_id_from_headers(&headers)?;
+    ensure_lease_access(&db, id, user_id).await?;
 
     // Delete the lease (receipts will be cascade deleted)
     sqlx::query(
