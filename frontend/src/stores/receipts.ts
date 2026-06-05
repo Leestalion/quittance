@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { receiptsAPI } from '../api'
-import type { Receipt, CreateReceipt } from '../types'
+import type { Receipt, CreateReceipt, RegenerateReceiptsResult } from '../types'
 
 export const useReceiptsStore = defineStore('receipts', () => {
   const receipts = ref<Receipt[]>([])
@@ -46,10 +46,52 @@ export const useReceiptsStore = defineStore('receipts', () => {
     error.value = null
     try {
       const receipt = await receiptsAPI.create(data)
-      receipts.value.push(receipt)
+      const index = receipts.value.findIndex(r => r.id === receipt.id)
+      if (index !== -1) {
+        receipts.value[index] = receipt
+      } else {
+        const existingPeriodIndex = receipts.value.findIndex(
+          r => r.lease_id === receipt.lease_id && r.period_month === receipt.period_month && r.period_year === receipt.period_year,
+        )
+        if (existingPeriodIndex !== -1) {
+          receipts.value[existingPeriodIndex] = receipt
+        } else {
+          receipts.value.push(receipt)
+        }
+      }
       return receipt
     } catch (err: any) {
       error.value = err.message || 'Failed to create receipt'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function deleteReceipt(id: string) {
+    loading.value = true
+    error.value = null
+    try {
+      await receiptsAPI.delete(id)
+      receipts.value = receipts.value.filter(r => r.id !== id)
+    } catch (err: any) {
+      error.value = err.message || 'Failed to delete receipt'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function regenerateForLease(leaseId: string, purgeExisting = false): Promise<RegenerateReceiptsResult> {
+    loading.value = true
+    error.value = null
+    try {
+      const result = await receiptsAPI.regenerateForLease(leaseId, purgeExisting)
+      receipts.value = receipts.value.filter(r => r.lease_id !== leaseId)
+      receipts.value.push(...result.receipts)
+      return result
+    } catch (err: any) {
+      error.value = err.message || 'Failed to regenerate receipts'
       throw err
     } finally {
       loading.value = false
@@ -86,6 +128,8 @@ export const useReceiptsStore = defineStore('receipts', () => {
     fetchReceipts,
     fetchReceipt,
     createReceipt,
+    deleteReceipt,
+    regenerateForLease,
     sendReceipt,
     getReceiptsByLease,
     getPendingReceipts

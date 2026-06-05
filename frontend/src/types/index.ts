@@ -175,6 +175,12 @@ export interface Receipt {
   updated_at: string
 }
 
+export interface RegenerateReceiptsResult {
+  created_count: number
+  deleted_count: number
+  receipts: Receipt[]
+}
+
 // Create/Update DTOs
 export interface CreateOrganization {
   name: string

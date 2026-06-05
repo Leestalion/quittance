@@ -201,6 +201,29 @@ async function generateReceipt() {
   }
 }
 
+async function generateMissingReceiptsUntilPreviousMonth() {
+  try {
+    const result = await receiptsStore.regenerateForLease(leaseId.value, false)
+    alert(`Régénération terminée: ${result.created_count} quittance(s) créée(s), aucune suppression.`)
+  } catch (err: any) {
+    error.value = err.message || 'Erreur lors de la régénération des quittances'
+  }
+}
+
+async function regenerateAllReceiptsUntilPreviousMonth() {
+  const confirmed = confirm(
+    'Cette action va supprimer les quittances existantes de ce bail (jusqu\'au mois précédent) puis les régénérer. Continuer ?'
+  )
+  if (!confirmed) return
+
+  try {
+    const result = await receiptsStore.regenerateForLease(leaseId.value, true)
+    alert(`Régénération complète: ${result.deleted_count} supprimée(s), ${result.created_count} recréée(s).`)
+  } catch (err: any) {
+    error.value = err.message || 'Erreur lors de la régénération complète des quittances'
+  }
+}
+
 function back() {
   if (showPreview.value) {
     showPreview.value = false
@@ -290,6 +313,15 @@ function back() {
         <button type="submit" class="btn-primary" :disabled="!monthCoverage?.valid">
           📄 Générer la quittance PDF
         </button>
+
+        <div class="batch-actions">
+          <button type="button" class="btn-secondary" @click="generateMissingReceiptsUntilPreviousMonth">
+            ♻️ Générer les quittances manquantes jusqu'au mois précédent
+          </button>
+          <button type="button" class="btn-danger" @click="regenerateAllReceiptsUntilPreviousMonth">
+            🧹 Supprimer et régénérer toutes les quittances jusqu'au mois précédent
+          </button>
+        </div>
       </form>
     </div>
   </div>
@@ -389,6 +421,22 @@ function back() {
   transition: background 0.2s;
 }
 
+.btn-danger {
+  background: #fff;
+  color: #b91c1c;
+  border: 1px solid #b91c1c;
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: all 0.2s;
+}
+
+.btn-danger:hover {
+  background: #b91c1c;
+  color: white;
+}
+
 .btn-secondary:hover {
   background: #e0e0e0;
 }
@@ -428,6 +476,12 @@ function back() {
 .proration-line {
   margin: 0;
   color: #334155;
+}
+
+.batch-actions {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
 }
 
 @media (prefers-color-scheme: dark) {

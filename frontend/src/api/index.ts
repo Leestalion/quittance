@@ -12,6 +12,7 @@ import type {
   CreateTenant,
   CreateLease,
   CreateReceipt,
+  RegenerateReceiptsResult,
   CreateFurnitureSet,
   CreateFurnitureItem,
   UpdateFurnitureItem,
@@ -177,6 +178,17 @@ export const receiptsAPI = {
 
   async create(data: CreateReceipt): Promise<Receipt> {
     const response = await apiClient.post('/receipts', data)
+    return response.data
+  },
+
+  async delete(id: string): Promise<void> {
+    await apiClient.delete(`/receipts/${id}`)
+  },
+
+  async regenerateForLease(leaseId: string, purgeExisting = false): Promise<RegenerateReceiptsResult> {
+    const response = await apiClient.post(`/receipts/lease/${leaseId}/regenerate`, {
+      purge_existing: purgeExisting,
+    })
     return response.data
   },
 

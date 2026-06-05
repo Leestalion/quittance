@@ -194,6 +194,37 @@ async function deleteLease(leaseId: string) {
   }
 }
 
+async function regenerateLeaseReceipts(leaseId: string, purgeExisting: boolean) {
+  try {
+    const result = await receiptsStore.regenerateForLease(leaseId, purgeExisting)
+    const propertyId = route.params.id as string
+    await leasesStore.fetchLeases(propertyId)
+    for (const l of leases.value) {
+      await receiptsStore.fetchReceipts(l.id)
+    }
+
+    const message = purgeExisting
+      ? `Régénération complète: ${result.deleted_count} supprimée(s), ${result.created_count} recréée(s).`
+      : `Régénération: ${result.created_count} quittance(s) manquante(s) créée(s).`
+    alert(message)
+  } catch (err: any) {
+    alert(err.message || 'Erreur lors de la régénération des quittances')
+  }
+}
+
+async function deleteReceipt(receiptId: string) {
+  if (!confirm('Supprimer cette quittance ?')) {
+    return
+  }
+
+  try {
+    await receiptsStore.deleteReceipt(receiptId)
+    alert('Quittance supprimée')
+  } catch (err: any) {
+    alert(err.message || 'Erreur lors de la suppression de la quittance')
+  }
+}
+
 async function loadFurnitureSet() {
   if (!property.value || !selectedFurnitureSetId.value) {
     selectedFurnitureSet.value = null
@@ -510,6 +541,20 @@ async function deleteProperty() {
               >
                 📄 Quittance
               </button>
+              <button
+                class="action-btn"
+                title="Générer les quittances manquantes"
+                @click="regenerateLeaseReceipts(lease.id, false)"
+              >
+                ♻️ Manquantes
+              </button>
+              <button
+                class="action-btn"
+                title="Supprimer et regénérer toutes les quittances"
+                @click="regenerateLeaseReceipts(lease.id, true)"
+              >
+                🧹 Régénérer
+              </button>
               <button 
                 @click="$router.push(`/properties/${property.id}/lease/${lease.id}/print`)"
                 class="action-btn"
@@ -561,6 +606,9 @@ async function deleteProperty() {
                   📧 Envoyer
                 </button>
                 <span v-else class="sent-indicator">✓ Envoyé</span>
+                <button class="delete-receipt-btn" @click="deleteReceipt(receipt.id)">
+                  🗑️ Supprimer
+                </button>
               </td>
             </tr>
           </tbody>
@@ -920,6 +968,22 @@ async function deleteProperty() {
 .sent-indicator {
   color: #388e3c;
   font-weight: 600;
+}
+
+.delete-receipt-btn {
+  margin-left: 0.5rem;
+  background: #fff;
+  color: #b91c1c;
+  border: 1px solid #b91c1c;
+  padding: 0.4rem 0.65rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.82rem;
+}
+
+.delete-receipt-btn:hover {
+  background: #b91c1c;
+  color: #fff;
 }
 
 .empty {

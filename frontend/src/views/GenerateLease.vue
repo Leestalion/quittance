@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useLeasesStore } from '../stores/leases'
 import { usePropertiesStore } from '../stores/properties'
 import { useTenantsStore } from '../stores/tenants'
+import { useReceiptsStore } from '../stores/receipts'
 import { useAuthStore } from '../stores/auth'
 import { useOrganizationsStore } from '../stores/organizations'
 import LeasePreview from '../components/LeasePreview.vue'
@@ -14,6 +15,7 @@ const router = useRouter()
 const leasesStore = useLeasesStore()
 const propertiesStore = usePropertiesStore()
 const tenantsStore = useTenantsStore()
+const receiptsStore = useReceiptsStore()
 const authStore = useAuthStore()
 const organizationsStore = useOrganizationsStore()
 
@@ -261,6 +263,10 @@ async function generateLease() {
 
     generatedLeaseId.value = lease.id
     isNewlyCreated.value = isCreating
+
+    if (!isCreating) {
+      await receiptsStore.regenerateForLease(lease.id, true)
+    }
     
     // Reload leases for this property to ensure PropertyDetail has fresh data
     await leasesStore.fetchLeases(propertyId.value)
