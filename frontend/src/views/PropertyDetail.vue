@@ -287,6 +287,13 @@ async function deleteProperty() {
         >
           📋 Créer un bail
         </button>
+        <button
+          v-if="activeLease"
+          @click="$router.push({ path: `/properties/${property.id}/lease/new`, query: { leaseId: activeLease.id } })"
+          class="btn-create-lease"
+        >
+          ✏️ Modifier le bail
+        </button>
         <div v-if="activeLeases.length > 0" class="receipts-dropdown">
           <button 
             @click="showReceiptsDropdown = !showReceiptsDropdown" 

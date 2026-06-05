@@ -7,7 +7,7 @@ import { useTenantsStore } from '../stores/tenants'
 import { useAuthStore } from '../stores/auth'
 import { useOrganizationsStore } from '../stores/organizations'
 import LeasePreview from '../components/LeasePreview.vue'
-import type { LeaseData, FurnitureSet, FurnitureSetWithItems } from '../types'
+import type { LeaseData, FurnitureSet, FurnitureSetWithItems, Lease } from '../types'
 
 const route = useRoute()
 const router = useRouter()
@@ -51,6 +51,27 @@ const selectedTenant = computed(() =>
   tenantsStore.getTenantById(formData.value.tenant_id)
 )
 const isEditMode = computed(() => generatedLeaseId.value !== null)
+
+function applyLeaseToForm(lease: Lease) {
+  formData.value = {
+    tenant_id: lease.tenant_id,
+    start_date: lease.start_date,
+    duration_months: lease.duration_months,
+    monthly_rent: Number(lease.monthly_rent),
+    charges: Number(lease.charges),
+    deposit: Number(lease.deposit),
+    rent_revision: lease.rent_revision,
+    inventory_date: lease.inventory_date || '',
+    private_room_label: lease.private_room_label || '',
+    shared_areas_text: lease.shared_areas_text || '',
+    furniture_set_ids: [...lease.furniture_set_ids],
+    furniture_inventory: lease.furniture_inventory || '',
+    dpe: lease.dpe || '',
+    erp: lease.erp || '',
+    home_insurance: lease.home_insurance || '',
+    legal_notice_provided: lease.legal_notice_provided,
+  }
+}
 
 const leaseData = computed<LeaseData | null>(() => {
   if (!property.value || !selectedTenant.value) return null
@@ -152,6 +173,34 @@ onMounted(async () => {
     }
 
     furnitureSets.value = await propertiesStore.listFurnitureSets(propertyId.value)
+
+    await leasesStore.fetchLeases(propertyId.value)
+
+    const leaseIdFromQuery = typeof route.query.leaseId === 'string'
+      ? route.query.leaseId
+      : null
+
+    let existingLease: Lease | undefined
+    if (leaseIdFromQuery) {
+      existingLease = leasesStore.getLeaseById(leaseIdFromQuery)
+      if (!existingLease) {
+        existingLease = await leasesStore.fetchLease(leaseIdFromQuery)
+      }
+    }
+
+    if (!existingLease) {
+      existingLease = leasesStore.getActiveLease(propertyId.value)
+    }
+
+    if (existingLease) {
+      generatedLeaseId.value = existingLease.id
+      applyLeaseToForm(existingLease)
+      await loadSelectedFurnitureSet()
+      await router.replace({
+        path: route.path,
+        query: { ...route.query, leaseId: existingLease.id }
+      })
+    }
   } catch (err: any) {
     error.value = err.message || 'Erreur lors du chargement'
   } finally {
@@ -213,6 +262,10 @@ async function generateLease() {
       : await leasesStore.createLease(payload)
 
     generatedLeaseId.value = lease.id
+    await router.replace({
+      path: route.path,
+      query: { ...route.query, leaseId: lease.id }
+    })
 
     console.log('Lease created:', lease);
 
