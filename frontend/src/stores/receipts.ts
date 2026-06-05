@@ -12,7 +12,14 @@ export const useReceiptsStore = defineStore('receipts', () => {
     loading.value = true
     error.value = null
     try {
-      receipts.value = await receiptsAPI.list(leaseId)
+      const fetched = await receiptsAPI.list(leaseId)
+      if (leaseId) {
+        // Replace only the targeted lease receipts to keep other leases in memory.
+        receipts.value = receipts.value.filter(r => r.lease_id !== leaseId)
+        receipts.value.push(...fetched)
+      } else {
+        receipts.value = fetched
+      }
     } catch (err: any) {
       error.value = err.message || 'Failed to load receipts'
       throw err
