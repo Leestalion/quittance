@@ -20,6 +20,7 @@ const organizationsStore = useOrganizationsStore()
 const loading = ref(false)
 const error = ref<string | null>(null)
 const showPreview = ref(false)
+const isNewlyCreated = ref(false)
 const generatedLeaseId = ref<string | null>(null)
 const furnitureSets = ref<FurnitureSet[]>([])
 const selectedFurnitureSets = ref<FurnitureSetWithItems[]>([])
@@ -257,17 +258,24 @@ async function generateLease() {
       legal_notice_provided: formData.value.legal_notice_provided
     }
 
-    const lease = generatedLeaseId.value
-      ? await leasesStore.updateLease(generatedLeaseId.value, payload)
-      : await leasesStore.createLease(payload)
+    const isCreating = !generatedLeaseId.value
+    const lease = isCreating
+      ? await leasesStore.createLease(payload)
+      : await leasesStore.updateLease(generatedLeaseId.value as string, payload)
 
     generatedLeaseId.value = lease.id
+    isNewlyCreated.value = isCreating
+    
+    // Reload leases for this property to ensure PropertyDetail has fresh data
+    await leasesStore.fetchLeases(propertyId.value)
+    
     await router.replace({
       path: route.path,
       query: { ...route.query, leaseId: lease.id }
     })
 
-    console.log('Lease created:', lease);
+    console.log('Lease created/updated:', lease)
+    error.value = null
 
     // Show PDF preview
     showPreview.value = true
@@ -281,6 +289,7 @@ async function generateLease() {
 function back() {
   if (showPreview.value) {
     showPreview.value = false
+    isNewlyCreated.value = false
   } else {
     router.push(`/properties/${propertyId.value}`)
   }
@@ -473,7 +482,9 @@ function back() {
 
   <LeasePreview 
     v-else-if="leaseData" 
-    :data="leaseData" 
+    :data="leaseData"
+    :property-id="propertyId"
+    :is-newly-created="isNewlyCreated"
     @back="back"
   />
 </template>

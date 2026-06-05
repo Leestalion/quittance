@@ -5,6 +5,8 @@ import type { LeaseData } from '../types'
 
 const props = defineProps<{
   data: LeaseData
+  isNewlyCreated?: boolean
+  propertyId?: string
 }>()
 
 defineEmits<{
@@ -409,6 +411,13 @@ function exportPDF() {
 
 <template>
   <div class="lease-container">
+    <div v-if="isNewlyCreated" class="success-banner">
+      <p>✅ Bail créé avec succès!</p>
+      <router-link v-if="propertyId" :to="`/properties/${propertyId}`" class="btn-success">
+        Retour à la propriété →
+      </router-link>
+    </div>
+
     <div class="lease-actions no-print">
       <button type="button" class="back-btn" @click="$emit('back')">
         ← Retour
@@ -595,6 +604,42 @@ function exportPDF() {
 .lease-container {
   max-width: 900px;
   margin: 0 auto;
+}
+
+.success-banner {
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+  color: white;
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  box-shadow: 0 4px 6px rgba(22, 163, 74, 0.2);
+}
+
+.success-banner p {
+  margin: 0;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.btn-success {
+  padding: 0.5rem 1rem;
+  background: white;
+  color: #16a34a;
+  text-decoration: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s;
+  display: inline-block;
+}
+
+.btn-success:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .lease-actions {

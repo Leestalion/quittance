@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePropertiesStore } from '../stores/properties'
 import { useLeasesStore } from '../stores/leases'
@@ -123,6 +123,20 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+watch(
+  () => route.params.id,
+  async (newPropertyId) => {
+    if (newPropertyId) {
+      try {
+        await leasesStore.fetchLeases(newPropertyId as string)
+      } catch (err: any) {
+        console.error('Failed to refresh leases:', err)
+      }
+    }
+  },
+  { immediate: false }
+)
 
 async function sendReceipt(receiptId: string) {
   try {
