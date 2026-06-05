@@ -34,6 +34,10 @@ async fn create_organization(
     Json(payload): Json<CreateOrganization>,
 ) -> Result<Json<Organization>, AppError> {
     let user_id = extract_user_id_from_headers(&headers)?;
+
+    if payload.address.trim().is_empty() {
+        return Err(AppError::BadRequest("Le siège social est obligatoire".to_string()));
+    }
     
     // Use a transaction to ensure organization and membership are created atomically
     let mut tx = db.pool.begin().await?;
@@ -124,6 +128,12 @@ async fn update_organization(
     Path(id): Path<Uuid>,
     Json(payload): Json<UpdateOrganization>,
 ) -> Result<Json<Organization>, AppError> {
+    if let Some(address) = &payload.address {
+        if address.trim().is_empty() {
+            return Err(AppError::BadRequest("Le siège social est obligatoire".to_string()));
+        }
+    }
+
     let org = sqlx::query_as::<_, Organization>(
         r#"
         UPDATE organizations

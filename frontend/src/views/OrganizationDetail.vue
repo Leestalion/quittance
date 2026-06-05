@@ -74,12 +74,18 @@ onMounted(async () => {
 })
 
 async function updateOrganization() {
+  const address = editFormData.value.address.trim()
+  if (!address) {
+    alert('Le siège social est obligatoire.')
+    return
+  }
+
   try {
     await organizationsStore.updateOrganization(organizationId.value, {
       name: editFormData.value.name,
       legal_form: editFormData.value.legal_form,
       siret: editFormData.value.siret || undefined,
-      address: editFormData.value.address,
+      address,
       phone: editFormData.value.phone || undefined,
       email: editFormData.value.email || undefined,
     })
@@ -187,7 +193,7 @@ function getRoleLabel(role: string) {
 
         <div class="info-grid">
           <div class="info-item">
-            <label>📍 Adresse</label>
+            <label>📍 Siège social</label>
             <p>{{ organization.address }}</p>
           </div>
 
@@ -270,7 +276,7 @@ function getRoleLabel(role: string) {
           </div>
 
           <div class="form-group">
-            <label>Adresse *</label>
+            <label>Siège social *</label>
             <textarea v-model="editFormData.address" required></textarea>
           </div>
 

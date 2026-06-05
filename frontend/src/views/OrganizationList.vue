@@ -21,12 +21,18 @@ onMounted(async () => {
 })
 
 async function createOrganization() {
+  const address = formData.value.address.trim()
+  if (!address) {
+    alert('Le siège social est obligatoire.')
+    return
+  }
+
   try {
     const newOrg = await organizationsStore.createOrganization({
       name: formData.value.name,
       legal_form: formData.value.legal_form,
       siret: formData.value.siret || undefined,
-      address: formData.value.address,
+      address,
       phone: formData.value.phone || undefined,
       email: formData.value.email || undefined,
     })
@@ -88,7 +94,7 @@ function viewOrganization(id: string) {
           <span class="badge">{{ org.legal_form }}</span>
         </div>
         <div class="card-body">
-          <p class="address">📍 {{ org.address }}</p>
+          <p class="address">📍 Siège social: {{ org.address }}</p>
           <p v-if="org.siret" class="siret">SIRET: {{ org.siret }}</p>
           <div class="card-footer">
             <span v-if="org.email" class="contact">✉️ {{ org.email }}</span>
@@ -125,8 +131,8 @@ function viewOrganization(id: string) {
           </div>
 
           <div class="form-group">
-            <label>Adresse *</label>
-            <textarea v-model="formData.address" required placeholder="10 rue des Propriétaires, 75001 Paris"></textarea>
+            <label>Siège social *</label>
+            <textarea v-model="formData.address" required placeholder="122 Rue Salvador Allende, 92000 Nanterre"></textarea>
           </div>
 
           <div class="form-row">

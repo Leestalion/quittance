@@ -33,6 +33,8 @@ const formData = ref({
   deposit: 0,
   rent_revision: true,
   inventory_date: '',
+  private_room_label: '',
+  shared_areas_text: '',
   furniture_set_ids: [] as string[],
   furniture_inventory: '',
   dpe: '',
@@ -60,6 +62,7 @@ const leaseData = computed<LeaseData | null>(() => {
     landlordData = {
       name: org.name,
       address: org.address,
+      addressLabel: 'Siège social' as const,
       legalForm: org.legal_form,
       siret: org.siret,
       legalRepresentative: ownerMember?.user_name || authStore.user?.name,
@@ -71,6 +74,7 @@ const leaseData = computed<LeaseData | null>(() => {
     landlordData = {
       name: authStore.user.name,
       address: authStore.user.address,
+      addressLabel: 'Adresse' as const,
       birthDate: authStore.user.birth_date,
       birthPlace: authStore.user.birth_place
     }
@@ -101,7 +105,9 @@ const leaseData = computed<LeaseData | null>(() => {
       deposit: formData.value.deposit,
       rentRevision: formData.value.rent_revision,
       annualChargesRegularization: false,
-      inventoryDate: formData.value.inventory_date || undefined
+      inventoryDate: formData.value.inventory_date || undefined,
+      privateRoomLabel: formData.value.private_room_label || undefined,
+      sharedAreasText: formData.value.shared_areas_text || undefined
     },
     annexes: {
       furnitureInventory: formData.value.furniture_inventory || undefined,
@@ -191,6 +197,8 @@ async function generateLease() {
       rent_revision: formData.value.rent_revision,
       annual_charges_regularization: false,
       inventory_date: formData.value.inventory_date || undefined,
+      private_room_label: formData.value.private_room_label || undefined,
+      shared_areas_text: formData.value.shared_areas_text || undefined,
       furniture_set_ids: formData.value.furniture_set_ids,
       furniture_inventory: formData.value.furniture_inventory || undefined,
       dpe: formData.value.dpe || undefined,
@@ -290,6 +298,28 @@ function back() {
         <div class="form-group">
           <label for="inventoryDate">Date de l'état des lieux</label>
           <input type="date" id="inventoryDate" v-model="formData.inventory_date" />
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="privateRoom">Chambre privative (colocation)</label>
+            <input
+              type="text"
+              id="privateRoom"
+              v-model="formData.private_room_label"
+              placeholder="Ex: 4"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="sharedAreas">Parties communes partagées</label>
+            <input
+              type="text"
+              id="sharedAreas"
+              v-model="formData.shared_areas_text"
+              placeholder="Ex: salon, cuisine, salle à manger, buanderie"
+            />
+          </div>
         </div>
 
         <div class="form-group checkbox">

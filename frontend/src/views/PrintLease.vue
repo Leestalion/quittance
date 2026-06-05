@@ -42,6 +42,7 @@ const leaseData = computed<LeaseData | null>(() => {
     landlord: {
       name: organization?.name || authStore.user.name,
       address: organization?.address || authStore.user.address,
+      addressLabel: organization ? 'Siège social' : 'Adresse',
       legalForm: organization?.legal_form,
       siret: organization?.siret,
       legalRepresentative: organization ? (ownerMember?.user_name || authStore.user.name) : undefined,
@@ -69,7 +70,9 @@ const leaseData = computed<LeaseData | null>(() => {
       deposit: Number(lease.value.deposit),
       rentRevision: lease.value.rent_revision,
       annualChargesRegularization: lease.value.annual_charges_regularization,
-      inventoryDate: lease.value.inventory_date || undefined
+      inventoryDate: lease.value.inventory_date || undefined,
+      privateRoomLabel: lease.value.private_room_label || undefined,
+      sharedAreasText: lease.value.shared_areas_text || undefined
     },
     annexes: {
       furnitureInventory: lease.value.furniture_inventory || undefined,

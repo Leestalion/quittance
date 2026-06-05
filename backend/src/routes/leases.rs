@@ -35,6 +35,8 @@ async fn fetch_lease_by_id(db: &Database, id: Uuid) -> Result<Lease, AppError> {
             l.rent_revision,
             l.annual_charges_regularization,
             l.inventory_date,
+            l.private_room_label,
+            l.shared_areas_text,
             COALESCE(
                 array_agg(DISTINCT lfs.furniture_set_id) FILTER (WHERE lfs.furniture_set_id IS NOT NULL),
                 CASE WHEN l.furniture_set_id IS NULL THEN '{}'::uuid[] ELSE ARRAY[l.furniture_set_id] END
@@ -123,8 +125,8 @@ async fn create_lease(
 
     let lease_id = sqlx::query_scalar::<_, Uuid>(
         r#"
-        INSERT INTO leases (property_id, tenant_id, start_date, end_date, duration_months, monthly_rent, charges, deposit, rent_revision, annual_charges_regularization, inventory_date, furniture_set_id, furniture_inventory, dpe, erp, home_insurance, legal_notice_provided, status)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'active')
+        INSERT INTO leases (property_id, tenant_id, start_date, end_date, duration_months, monthly_rent, charges, deposit, rent_revision, annual_charges_regularization, inventory_date, private_room_label, shared_areas_text, furniture_set_id, furniture_inventory, dpe, erp, home_insurance, legal_notice_provided, status)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, 'active')
         RETURNING id
         "#
     )
@@ -139,6 +141,8 @@ async fn create_lease(
     .bind(data.rent_revision)
     .bind(data.annual_charges_regularization)
     .bind(data.inventory_date)
+    .bind(data.private_room_label)
+    .bind(data.shared_areas_text)
     .bind(primary_furniture_set_id)
     .bind(data.furniture_inventory)
     .bind(data.dpe)

@@ -40,6 +40,23 @@ const totalMonthly = computed(() =>
 
 const depositIsZero = computed(() => props.data.terms.deposit === 0)
 
+const landlordAddressLabel = computed(() => {
+  return props.data.landlord.addressLabel
+    ?? (props.data.landlord.legalForm ? 'Siège social' : 'Adresse')
+})
+
+const colocationClause = computed(() => {
+  const room = props.data.terms.privateRoomLabel?.trim()
+  const sharedAreas = props.data.terms.sharedAreasText?.trim()
+
+  if (!room) {
+    return ''
+  }
+
+  const areasText = sharedAreas || 'salon, cuisine, salle à manger, buanderie, etc.'
+  return `Le locataire dispose à titre privatif de la chambre n°${room} et bénéficie d'un droit d'usage partagé des parties communes (${areasText}).`
+})
+
 const annexFurnitureItems = computed(() => {
   return (props.data.annexes.furnitureSets ?? []).flatMap(furnitureSet =>
     furnitureSet.items.map(item => ({
@@ -181,6 +198,8 @@ function exportPDF() {
     y += 5
   }
 
+  doc.text(`${landlordAddressLabel.value} :`, margin + 5, y)
+  y += 5
   const landlordAddressLines = doc.splitTextToSize(props.data.landlord.address, pageWidth - 2 * margin - 5)
   doc.text(landlordAddressLines, margin + 5, y)
   y += landlordAddressLines.length * 5
@@ -230,6 +249,12 @@ function exportPDF() {
   const article1Lines = doc.splitTextToSize(article1, pageWidth - 2 * margin)
   doc.text(article1Lines, margin, y)
   y += article1Lines.length * 5 + 8
+
+  if (colocationClause.value) {
+    const colocationLines = doc.splitTextToSize(colocationClause.value, pageWidth - 2 * margin)
+    doc.text(colocationLines, margin, y)
+    y += colocationLines.length * 5 + 5
+  }
 
   if (props.data.property.description) {
     const descLines = doc.splitTextToSize(props.data.property.description, pageWidth - 2 * margin)
@@ -330,7 +355,7 @@ function exportPDF() {
 
     if (annexFurnitureItems.value.length > 0) {
       furnitureAnnexLines.push('- Le mobilier détaillé est présenté dans le tableau ci-dessous.')
-    }
+       }
   }
   legalAnnexLines.push(`- DPE: ${props.data.annexes.dpe || 'annexé au présent bail.'}`)
   legalAnnexLines.push(`- ERP: ${props.data.annexes.erp || 'annexé au présent bail.'}`)
@@ -413,6 +438,7 @@ function exportPDF() {
           <p v-if="data.landlord.legalForm">Forme juridique: {{ data.landlord.legalForm }}</p>
           <p v-if="data.landlord.siret">SIRET: {{ data.landlord.siret }}</p>
           <p v-if="data.landlord.legalRepresentative">Représentant légal: {{ data.landlord.legalRepresentative }}</p>
+          <p><strong>{{ landlordAddressLabel }}:</strong></p>
           <p class="address">{{ data.landlord.address }}</p>
           <p v-if="data.landlord.birthDate && data.landlord.birthPlace" class="birth-info">
             Né(e) le {{ new Date(data.landlord.birthDate).toLocaleDateString('fr-FR') }}
@@ -441,6 +467,9 @@ function exportPDF() {
             Le logement est <strong>{{ propertyTypeLabel }}</strong> d'une surface habitable de
             <strong>{{ data.property.surface }} m²</strong>, comprenant <strong>{{ data.property.rooms }} pièce(s)</strong>
             principale(s).
+          </p>
+          <p v-if="colocationClause" class="description">
+            {{ colocationClause }}
           </p>
           <p v-if="data.property.description" class="description">
             {{ data.property.description }}

@@ -145,6 +145,8 @@ export interface Lease {
   rent_revision: boolean
   annual_charges_regularization: boolean
   inventory_date?: string
+  private_room_label?: string
+  shared_areas_text?: string
   furniture_set_ids: string[]
   furniture_inventory?: string
   dpe?: string
@@ -222,6 +224,8 @@ export interface CreateLease {
   rent_revision: boolean
   annual_charges_regularization: boolean
   inventory_date?: string
+  private_room_label?: string
+  shared_areas_text?: string
   furniture_set_ids: string[]
   furniture_inventory?: string
   dpe?: string
@@ -278,6 +282,7 @@ export interface LeaseData {
   landlord: {
     name: string
     address: string
+    addressLabel?: 'Adresse' | 'Siège social'
     birthDate?: string
     birthPlace?: string
     legalForm?: string
@@ -301,6 +306,8 @@ export interface LeaseData {
     rentRevision: boolean
     annualChargesRegularization: boolean
     inventoryDate?: string
+    privateRoomLabel?: string
+    sharedAreasText?: string
   }
   annexes: {
     furnitureInventory?: string
