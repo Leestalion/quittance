@@ -189,10 +189,6 @@ onMounted(async () => {
       }
     }
 
-    if (!existingLease) {
-      existingLease = leasesStore.getActiveLease(propertyId.value)
-    }
-
     if (existingLease) {
       generatedLeaseId.value = existingLease.id
       applyLeaseToForm(existingLease)
@@ -287,12 +283,12 @@ async function generateLease() {
 }
 
 function back() {
-  if (showPreview.value) {
-    showPreview.value = false
-    isNewlyCreated.value = false
-  } else {
-    router.push(`/properties/${propertyId.value}`)
-  }
+  showPreview.value = false
+  isNewlyCreated.value = false
+  router.push({
+    path: `/properties/${propertyId.value}`,
+    query: { tab: 'leases' }
+  })
 }
 </script>
 
@@ -301,7 +297,7 @@ function back() {
 
   <div v-else-if="error" class="error-state">
     <p>❌ {{ error }}</p>
-    <button @click="router.push(`/properties/${propertyId}`)" class="btn-secondary">
+    <button @click="router.push({ path: `/properties/${propertyId}`, query: { tab: 'leases' } })" class="btn-secondary">
       Retour
     </button>
   </div>

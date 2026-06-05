@@ -413,7 +413,7 @@ function exportPDF() {
   <div class="lease-container">
     <div v-if="isNewlyCreated" class="success-banner">
       <p>✅ Bail créé avec succès!</p>
-      <router-link v-if="propertyId" :to="`/properties/${propertyId}`" class="btn-success">
+      <router-link v-if="propertyId" :to="`/properties/${propertyId}?tab=leases`" class="btn-success">
         Retour à la propriété →
       </router-link>
     </div>

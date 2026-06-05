@@ -21,7 +21,13 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const showReceiptsDropdown = ref(false)
 
-const activeTab = ref<'info' | 'leases' | 'receipts'>('info')
+type PropertyTab = 'info' | 'leases' | 'receipts'
+
+function getTabFromQuery(tab: unknown): PropertyTab {
+  return tab === 'leases' || tab === 'receipts' ? tab : 'info'
+}
+
+const activeTab = ref<PropertyTab>(getTabFromQuery(route.query.tab))
 const furnitureSets = ref<FurnitureSet[]>([])
 const selectedFurnitureSetId = ref('')
 const selectedFurnitureSet = ref<FurnitureSetWithItems | null>(null)
@@ -137,6 +143,30 @@ watch(
   },
   { immediate: false }
 )
+
+watch(
+  () => route.query.tab,
+  (newTab) => {
+    const nextTab = getTabFromQuery(newTab)
+    if (activeTab.value !== nextTab) {
+      activeTab.value = nextTab
+    }
+  }
+)
+
+function setActiveTab(tab: PropertyTab) {
+  if (activeTab.value === tab && route.query.tab === tab) {
+    return
+  }
+
+  activeTab.value = tab
+  router.replace({
+    query: {
+      ...route.query,
+      tab,
+    },
+  })
+}
 
 async function sendReceipt(receiptId: string) {
   try {
@@ -296,17 +326,10 @@ async function deleteProperty() {
         </div>
         <button 
           v-if="!occupancyInfo.isFull" 
-          @click="$router.push(`/properties/${property.id}/lease/new`)"
+          @click="$router.push({ path: `/properties/${property.id}/lease/new`, query: { tab: 'leases' } })"
           class="btn-create-lease"
         >
           📋 Créer un bail
-        </button>
-        <button
-          v-if="activeLease"
-          @click="$router.push({ path: `/properties/${property.id}/lease/new`, query: { leaseId: activeLease.id } })"
-          class="btn-create-lease"
-        >
-          ✏️ Modifier le bail
         </button>
         <div v-if="activeLeases.length > 0" class="receipts-dropdown">
           <button 
@@ -331,13 +354,13 @@ async function deleteProperty() {
 
     <!-- Tabs -->
     <div class="tabs">
-      <button @click="activeTab = 'info'" :class="{ active: activeTab === 'info' }">
+      <button @click="setActiveTab('info')" :class="{ active: activeTab === 'info' }">
         Informations
       </button>
-      <button @click="activeTab = 'leases'" :class="{ active: activeTab === 'leases' }">
+      <button @click="setActiveTab('leases')" :class="{ active: activeTab === 'leases' }">
         Baux ({{ leases.length }})
       </button>
-      <button @click="activeTab = 'receipts'" :class="{ active: activeTab === 'receipts' }">
+      <button @click="setActiveTab('receipts')" :class="{ active: activeTab === 'receipts' }">
         Quittances ({{ receipts.length }})
       </button>
     </div>
@@ -450,6 +473,9 @@ async function deleteProperty() {
 
       <!-- Leases Tab -->
       <div v-if="activeTab === 'leases' && property" class="leases-section">
+        <div class="leases-toolbar">
+          <button @click="setActiveTab('info')" class="back-to-property-btn">← Retour à la propriété</button>
+        </div>
         <div v-if="leases.length === 0" class="empty">Aucun bail enregistré</div>
         <div v-else class="leases-list">
           <div v-for="lease in leases" :key="lease.id" class="lease-item">
@@ -465,6 +491,13 @@ async function deleteProperty() {
             </div>
             <div class="lease-actions">
               <span class="lease-status" :class="lease.status">{{ lease.status }}</span>
+              <button
+                @click="$router.push({ path: `/properties/${property.id}/lease/new`, query: { leaseId: lease.id, tab: 'leases' } })"
+                class="action-btn"
+                title="Modifier ce bail"
+              >
+                ✏️ Modifier
+              </button>
               <button 
                 v-if="lease.status === 'active'"
                 @click="$router.push(`/properties/${property.id}/receipt/new/${lease.id}`)"
@@ -719,6 +752,24 @@ async function deleteProperty() {
   background: white;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.leases-toolbar {
+  margin-bottom: 1rem;
+}
+
+.back-to-property-btn {
+  background: #f5f5f5;
+  color: #333;
+  border: 1px solid #ddd;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.back-to-property-btn:hover {
+  background: #e9e9e9;
 }
 
 .lease-item {
