@@ -124,12 +124,18 @@ async fn list_leases(
 
         sqlx::query_as::<_, (Uuid,)>(
             r#"
-            SELECT DISTINCT l.id
+                        SELECT l.id
             FROM leases l
             JOIN properties p ON l.property_id = p.id
-            LEFT JOIN organization_members om ON p.organization_id = om.organization_id
             WHERE l.property_id = $1
-              AND (p.user_id = $2 OR om.user_id = $2)
+                            AND (
+                                p.user_id = $2 OR EXISTS (
+                                    SELECT 1
+                                    FROM organization_members om
+                                    WHERE om.organization_id = p.organization_id
+                                        AND om.user_id = $2
+                                )
+                            )
             ORDER BY l.start_date DESC
             "#
         )
@@ -140,11 +146,16 @@ async fn list_leases(
     } else {
         sqlx::query_as::<_, (Uuid,)>(
             r#"
-            SELECT DISTINCT l.id
+                        SELECT l.id
             FROM leases l
             JOIN properties p ON l.property_id = p.id
-            LEFT JOIN organization_members om ON p.organization_id = om.organization_id
-            WHERE p.user_id = $1 OR om.user_id = $1
+                        WHERE p.user_id = $1
+                             OR EXISTS (
+                                 SELECT 1
+                                 FROM organization_members om
+                                 WHERE om.organization_id = p.organization_id
+                                     AND om.user_id = $1
+                             )
             ORDER BY l.start_date DESC
             "#
         )
