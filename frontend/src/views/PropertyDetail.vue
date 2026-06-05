@@ -474,6 +474,10 @@ async function deleteProperty() {
       <!-- Leases Tab -->
       <div v-if="activeTab === 'leases' && property" class="leases-section">
         <div class="leases-toolbar">
+          <div>
+            <h2 class="leases-title">Baux de cette propriété</h2>
+            <p class="leases-subtitle">Modifiez, imprimez ou supprimez chaque bail individuellement.</p>
+          </div>
           <button @click="setActiveTab('info')" class="back-to-property-btn">← Retour à la propriété</button>
         </div>
         <div v-if="leases.length === 0" class="empty">Aucun bail enregistré</div>
@@ -511,7 +515,7 @@ async function deleteProperty() {
                 class="action-btn"
                 title="Voir et imprimer le bail"
               >
-                🖨️ Imprimer
+                🖨️ Voir le bail
               </button>
               <button 
                 @click="deleteLease(lease.id)"
@@ -755,7 +759,22 @@ async function deleteProperty() {
 }
 
 .leases-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+.leases-title {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.leases-subtitle {
+  margin: 0.25rem 0 0;
+  color: #666;
+  font-size: 0.92rem;
 }
 
 .back-to-property-btn {

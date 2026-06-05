@@ -414,13 +414,13 @@ function exportPDF() {
     <div v-if="isNewlyCreated" class="success-banner">
       <p>✅ Bail créé avec succès!</p>
       <router-link v-if="propertyId" :to="`/properties/${propertyId}?tab=leases`" class="btn-success">
-        Retour à la propriété →
+        Voir la liste des baux →
       </router-link>
     </div>
 
     <div class="lease-actions no-print">
       <button type="button" class="back-btn" @click="$emit('back')">
-        ← Retour
+        ← Retour à la liste des baux
       </button>
       <button type="button" class="pdf-btn" @click="exportPDF">
         📄 Télécharger PDF

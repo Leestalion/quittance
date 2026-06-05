@@ -304,8 +304,11 @@ function back() {
 
   <div v-else-if="!showPreview" class="generate-lease">
     <div class="header">
-      <h1>{{ isEditMode ? 'Modifier le bail généré' : 'Créer un nouveau bail' }}</h1>
-      <button @click="back" class="btn-secondary">← Retour</button>
+      <div>
+        <p class="context-label">Propriété / Baux</p>
+        <h1>{{ isEditMode ? 'Modifier le bail' : 'Créer un nouveau bail' }}</h1>
+      </div>
+      <button @click="back" class="btn-secondary">← Retour à la liste des baux</button>
     </div>
 
     <p v-if="isEditMode" class="edit-mode-note">
@@ -509,6 +512,15 @@ function back() {
 
 .header h1 {
   margin: 0;
+}
+
+.context-label {
+  margin: 0 0 0.35rem;
+  color: #667eea;
+  font-size: 0.88rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .card {
