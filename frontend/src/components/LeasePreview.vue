@@ -42,6 +42,20 @@ const totalMonthly = computed(() =>
 
 const depositIsZero = computed(() => props.data.terms.deposit === 0)
 
+const resolutoryClauseText = computed(() =>
+  "Clause resolutoire obligatoire: le present bail sera resilie de plein droit en cas de defaut de paiement du loyer ou des charges, de non-versement du depot de garantie, de non-souscription d'une assurance risques locatifs, ou de troubles de voisinage constates par decision de justice definitive."
+)
+
+const professionalMandateText = computed(() => {
+  if (!props.data.annexes.professionalMandate) {
+    return ''
+  }
+
+  const tenantFee = props.data.annexes.agencyFeeTenant ?? 0
+  const landlordFee = props.data.annexes.agencyFeeLandlord ?? 0
+  return `Mandataire professionnel: application des regles de l'article 5-I de la loi du 6 juillet 1989. Honoraires locataire: ${formatCurrency(tenantFee)}. Honoraires bailleur: ${formatCurrency(landlordFee)}. La part locataire ne peut exceder la part bailleur ni les plafonds legaux au m2.`
+})
+
 const landlordAddressLabel = computed(() => {
   return props.data.landlord.addressLabel
     ?? (props.data.landlord.legalForm ? 'Siège social' : 'Adresse')
@@ -240,9 +254,9 @@ function exportPDF() {
   doc.text('IL A ÉTÉ CONVENU CE QUI SUIT :', margin, y)
   y += 10
 
-  // Article 1 - Objet du contrat
+  // II. Objet du contrat
   doc.setFont('helvetica', 'bold')
-  doc.text('Article 1 - Objet du contrat', margin, y)
+  doc.text('II. Objet du contrat', margin, y)
   y += 6
   doc.setFont('helvetica', 'normal')
   const article1 = `Le bailleur loue au locataire, qui accepte, le logement situé ${props.data.property.address}. Le logement est ${propertyTypeLabel.value} d'une surface habitable de ${props.data.property.surface} m², comprenant ${props.data.property.rooms} pièce(s) principale(s).`
@@ -268,9 +282,9 @@ function exportPDF() {
     y = 20
   }
 
-  // Article 2 - Durée
+  // III. Date de prise d'effet et duree
   doc.setFont('helvetica', 'bold')
-  doc.text('Article 2 - Durée du bail', margin, y)
+  doc.text('III. Date de prise d\'effet et duree du contrat', margin, y)
   y += 6
   doc.setFont('helvetica', 'normal')
   const article2 = `Le présent bail est conclu pour une durée de ${props.data.terms.duration} mois, soit du ${formattedStartDate.value} au ${endDate.value}. À l'échéance, le bail se renouvellera automatiquement par tacite reconduction pour la même durée, sauf dénonciation dans les conditions légales.`
@@ -278,9 +292,9 @@ function exportPDF() {
   doc.text(article2Lines, margin, y)
   y += article2Lines.length * 5 + 8
 
-  // Article 3 - Loyer
+  // IV. Conditions financieres
   doc.setFont('helvetica', 'bold')
-  doc.text('Article 3 - Loyer et charges', margin, y)
+  doc.text('IV. Conditions financieres (loyer et charges)', margin, y)
   y += 6
   doc.setFont('helvetica', 'normal')
   const article3 = `Le loyer mensuel est fixé à ${formatCurrency(props.data.terms.monthlyRent)}, payable mensuellement à terme échu. Les charges sont fixées forfaitairement à ${formatCurrency(props.data.terms.charges)} par mois, soit un total mensuel de ${formatCurrency(totalMonthly.value)}.`
@@ -312,9 +326,9 @@ function exportPDF() {
     y = 20
   }
 
-  // Article 4 - Dépôt de garantie
+  // VI. Garanties
   doc.setFont('helvetica', 'bold')
-  doc.text('Article 4 - Dépôt de garantie', margin, y)
+  doc.text('VI. Garanties - Depot de garantie', margin, y)
   y += 6
   doc.setFont('helvetica', 'normal')
   const article4 = depositIsZero.value
@@ -324,11 +338,11 @@ function exportPDF() {
   doc.text(article4Lines, margin, y)
   y += article4Lines.length * 5 + 8
 
-  // Article 5 - État des lieux
+  // XI. Annexes obligatoires - etat des lieux
   if (props.data.terms.inventoryDate) {
     const inventoryDate = new Date(props.data.terms.inventoryDate).toLocaleDateString('fr-FR')
     doc.setFont('helvetica', 'bold')
-    doc.text('Article 5 - État des lieux', margin, y)
+    doc.text('XI. Annexes obligatoires - Etat des lieux', margin, y)
     y += 6
     doc.setFont('helvetica', 'normal')
     const article5 = `Un état des lieux contradictoire d'entrée a été établi le ${inventoryDate}. Un état des lieux de sortie sera effectué lors de la restitution des clés, selon les mêmes modalités.`
@@ -344,7 +358,7 @@ function exportPDF() {
   }
 
   doc.setFont('helvetica', 'bold')
-  doc.text('Article 6 - Annexes et mentions légales', margin, y)
+  doc.text('XI. Annexes et mentions legales', margin, y)
   y += 6
   doc.setFont('helvetica', 'normal')
 
@@ -384,6 +398,36 @@ function exportPDF() {
   if (y > pageHeight - 50) {
     doc.addPage()
     y = 20
+  }
+
+  doc.setFont('helvetica', 'bold')
+  doc.text('VIII. Clause resolutoire', margin, y)
+  y += 6
+  doc.setFont('helvetica', 'normal')
+  const resolutoryLines = doc.splitTextToSize(resolutoryClauseText.value, pageWidth - 2 * margin)
+  doc.text(resolutoryLines, margin, y)
+  y += resolutoryLines.length * 5 + 8
+
+  if (professionalMandateText.value) {
+    ensureSpace(30)
+    doc.setFont('helvetica', 'bold')
+    doc.text('IX. Honoraires de location', margin, y)
+    y += 6
+    doc.setFont('helvetica', 'normal')
+    const feesLines = doc.splitTextToSize(professionalMandateText.value, pageWidth - 2 * margin)
+    doc.text(feesLines, margin, y)
+    y += feesLines.length * 5 + 8
+  }
+
+  if (props.data.annexes.customClauses) {
+    ensureSpace(30)
+    doc.setFont('helvetica', 'bold')
+    doc.text('X. Autres conditions particulieres', margin, y)
+    y += 6
+    doc.setFont('helvetica', 'normal')
+    const customLines = doc.splitTextToSize(props.data.annexes.customClauses, pageWidth - 2 * margin)
+    doc.text(customLines, margin, y)
+    y += customLines.length * 5 + 8
   }
 
   // Signatures
@@ -468,7 +512,7 @@ function exportPDF() {
         <h2>Il a été convenu ce qui suit :</h2>
 
         <article class="lease-article">
-          <h3>Article 1 - Objet du contrat</h3>
+          <h3>II. Objet du contrat</h3>
           <p>
             Le bailleur loue au locataire, qui accepte, le logement situé <strong>{{ data.property.address }}</strong>.
             Le logement est <strong>{{ propertyTypeLabel }}</strong> d'une surface habitable de
@@ -484,7 +528,7 @@ function exportPDF() {
         </article>
 
         <article class="lease-article">
-          <h3>Article 2 - Durée du bail</h3>
+          <h3>III. Date de prise d'effet et durée du contrat</h3>
           <p>
             Le présent bail est conclu pour une durée de <strong>{{ data.terms.duration }} mois</strong>,
             soit du <strong>{{ formattedStartDate }}</strong> au <strong>{{ endDate }}</strong>.
@@ -494,7 +538,7 @@ function exportPDF() {
         </article>
 
         <article class="lease-article">
-          <h3>Article 3 - Loyer et charges</h3>
+          <h3>IV. Conditions financières (loyer et charges)</h3>
           <p>
             Le loyer mensuel est fixé à <strong>{{ formatCurrency(data.terms.monthlyRent) }}</strong>,
             payable mensuellement à terme échu.
@@ -516,7 +560,7 @@ function exportPDF() {
         </article>
 
         <article class="lease-article">
-          <h3>Article 4 - Dépôt de garantie</h3>
+          <h3>VI. Garanties - Dépôt de garantie</h3>
           <p v-if="!depositIsZero">
             Le locataire verse au bailleur un dépôt de garantie d'un montant de
             <strong>{{ formatCurrency(data.terms.deposit) }}</strong>, qui lui sera restitué dans un délai
@@ -526,6 +570,21 @@ function exportPDF() {
           <p v-else>
             Aucun dépôt de garantie n'est exigé au titre du présent bail.
           </p>
+        </article>
+
+        <article class="lease-article">
+          <h3>VIII. Clause résolutoire</h3>
+          <p>{{ resolutoryClauseText }}</p>
+        </article>
+
+        <article v-if="professionalMandateText" class="lease-article">
+          <h3>IX. Honoraires de location</h3>
+          <p>{{ professionalMandateText }}</p>
+        </article>
+
+        <article v-if="data.annexes.customClauses" class="lease-article">
+          <h3>X. Autres conditions particulières</h3>
+          <p>{{ data.annexes.customClauses }}</p>
         </article>
 
         <article v-if="data.terms.inventoryDate" class="lease-article">

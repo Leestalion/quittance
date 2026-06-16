@@ -9,6 +9,7 @@ import { useAuthStore } from '../stores/auth'
 import { useOrganizationsStore } from '../stores/organizations'
 import LeasePreview from '../components/LeasePreview.vue'
 import type { LeaseData, FurnitureSet, FurnitureSetWithItems, Lease } from '../types'
+import { buildComplianceWarnings } from '../utils/leaseCompliance'
 
 const route = useRoute()
 const router = useRouter()
@@ -32,10 +33,36 @@ const formData = ref({
   tenant_id: '',
   start_date: new Date().toISOString().split('T')[0],
   duration_months: 12,
+  lease_kind: 'standard' as 'standard' | 'student',
+  is_colocation: false,
+  tenant_count: 1,
+  destination: 'habitation' as 'habitation' | 'mixte_professionnel_habitation',
   monthly_rent: 0,
   charges: 0,
   deposit: 0,
   rent_revision: true,
+  habitable_surface: 0,
+  main_room_count: 1,
+  heating_mode: 'individuel' as 'individuel' | 'collectif',
+  hot_water_mode: 'individuelle' as 'individuelle' | 'collective',
+  dpe_class: 'D' as 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G',
+  is_dom_tom: false,
+  energy_cost_annual: '',
+  energy_cost_year: new Date().getFullYear(),
+  rent_payment_frequency: 'mensuel' as 'mensuel' | 'trimestriel',
+  rent_payment_timing: 'a_echoir' as 'a_echoir' | 'a_terme_echu',
+  rent_payment_period: 'le 1er de chaque mois',
+  rent_controlled: false,
+  reference_rent: 0,
+  reference_rent_majorated: 0,
+  rent_complement: 0,
+  rent_complement_justification: '',
+  previous_tenant_departure_date: '',
+  previous_tenant_last_rent: 0,
+  professional_mandate: false,
+  agency_fee_tenant: 0,
+  agency_fee_landlord: 0,
+  custom_clauses: '',
   inventory_date: '',
   private_room_label: '',
   shared_areas_text: '',
@@ -44,7 +71,12 @@ const formData = ref({
   dpe: '',
   erp: '',
   home_insurance: '',
-  legal_notice_provided: true
+  legal_notice_provided: true,
+  annex_entry_inventory_provided: true,
+  annex_furniture_inventory_provided: true,
+  annex_dpe_provided: true,
+  annex_erp_provided: true,
+  annex_home_insurance_provided: true,
 })
 
 const propertyId = computed(() => route.params.propertyId as string)
@@ -55,15 +87,45 @@ const selectedTenant = computed(() =>
 )
 const isEditMode = computed(() => generatedLeaseId.value !== null)
 
+const complianceWarnings = computed(() => {
+  return buildComplianceWarnings(formData.value)
+})
+
 function applyLeaseToForm(lease: Lease) {
   formData.value = {
     tenant_id: lease.tenant_id,
     start_date: lease.start_date,
     duration_months: lease.duration_months,
+    lease_kind: lease.lease_kind,
+    is_colocation: lease.is_colocation,
+    tenant_count: lease.tenant_count,
+    destination: lease.destination,
     monthly_rent: Number(lease.monthly_rent),
     charges: Number(lease.charges),
     deposit: Number(lease.deposit),
     rent_revision: lease.rent_revision,
+    habitable_surface: Number(lease.habitable_surface ?? property.value?.surface_area ?? 0),
+    main_room_count: Number(lease.main_room_count ?? property.value?.rooms ?? 1),
+    heating_mode: lease.heating_mode ?? 'individuel',
+    hot_water_mode: lease.hot_water_mode ?? 'individuelle',
+    dpe_class: lease.dpe_class ?? 'D',
+    is_dom_tom: lease.is_dom_tom,
+    energy_cost_annual: lease.energy_cost_annual ?? '',
+    energy_cost_year: lease.energy_cost_year ?? new Date().getFullYear(),
+    rent_payment_frequency: lease.rent_payment_frequency,
+    rent_payment_timing: lease.rent_payment_timing,
+    rent_payment_period: lease.rent_payment_period ?? 'le 1er de chaque mois',
+    rent_controlled: lease.rent_controlled,
+    reference_rent: Number(lease.reference_rent ?? 0),
+    reference_rent_majorated: Number(lease.reference_rent_majorated ?? 0),
+    rent_complement: Number(lease.rent_complement ?? 0),
+    rent_complement_justification: lease.rent_complement_justification ?? '',
+    previous_tenant_departure_date: lease.previous_tenant_departure_date ?? '',
+    previous_tenant_last_rent: Number(lease.previous_tenant_last_rent ?? 0),
+    professional_mandate: lease.professional_mandate,
+    agency_fee_tenant: Number(lease.agency_fee_tenant ?? 0),
+    agency_fee_landlord: Number(lease.agency_fee_landlord ?? 0),
+    custom_clauses: lease.custom_clauses ?? '',
     inventory_date: lease.inventory_date || '',
     private_room_label: lease.private_room_label || '',
     shared_areas_text: lease.shared_areas_text || '',
@@ -73,6 +135,11 @@ function applyLeaseToForm(lease: Lease) {
     erp: lease.erp || '',
     home_insurance: lease.home_insurance || '',
     legal_notice_provided: lease.legal_notice_provided,
+    annex_entry_inventory_provided: lease.annex_entry_inventory_provided,
+    annex_furniture_inventory_provided: lease.annex_furniture_inventory_provided,
+    annex_dpe_provided: lease.annex_dpe_provided,
+    annex_erp_provided: lease.annex_erp_provided,
+    annex_home_insurance_provided: lease.annex_home_insurance_provided,
   }
 }
 
@@ -126,6 +193,9 @@ const leaseData = computed<LeaseData | null>(() => {
     terms: {
       startDate: formData.value.start_date || '',
       duration: formData.value.duration_months,
+      leaseKind: formData.value.lease_kind,
+      isColocation: formData.value.is_colocation,
+      tenantCount: formData.value.tenant_count,
       monthlyRent: formData.value.monthly_rent,
       charges: formData.value.charges,
       deposit: formData.value.deposit,
@@ -133,7 +203,12 @@ const leaseData = computed<LeaseData | null>(() => {
       annualChargesRegularization: false,
       inventoryDate: formData.value.inventory_date || undefined,
       privateRoomLabel: formData.value.private_room_label || undefined,
-      sharedAreasText: formData.value.shared_areas_text || undefined
+      sharedAreasText: formData.value.shared_areas_text || undefined,
+      rentControlled: formData.value.rent_controlled,
+      referenceRent: formData.value.rent_controlled ? formData.value.reference_rent : undefined,
+      referenceRentMajorated: formData.value.rent_controlled ? formData.value.reference_rent_majorated : undefined,
+      rentComplement: formData.value.rent_controlled ? formData.value.rent_complement : undefined,
+      rentComplementJustification: formData.value.rent_complement_justification || undefined,
     },
     annexes: {
       furnitureInventory: formData.value.furniture_inventory || undefined,
@@ -149,7 +224,11 @@ const leaseData = computed<LeaseData | null>(() => {
       dpe: formData.value.dpe || undefined,
       erp: formData.value.erp || undefined,
       homeInsurance: formData.value.home_insurance || undefined,
-      legalNoticeProvided: formData.value.legal_notice_provided
+      legalNoticeProvided: formData.value.legal_notice_provided,
+      professionalMandate: formData.value.professional_mandate,
+      agencyFeeTenant: formData.value.professional_mandate ? formData.value.agency_fee_tenant : undefined,
+      agencyFeeLandlord: formData.value.professional_mandate ? formData.value.agency_fee_landlord : undefined,
+      customClauses: formData.value.custom_clauses || undefined,
     }
   }
 })
@@ -169,6 +248,9 @@ onMounted(async () => {
       error.value = 'Propriété non trouvée'
       return
     }
+
+    formData.value.habitable_surface = Number(property.value.surface_area) || 0
+    formData.value.main_room_count = property.value.rooms || 1
 
     // Fetch organization if property belongs to one
     if (property.value.organization_id) {
@@ -229,6 +311,11 @@ async function generateLease() {
     return
   }
 
+  if (formData.value.habitable_surface <= 0 || formData.value.main_room_count <= 0) {
+    error.value = 'La surface habitable et le nombre de pieces principales sont obligatoires'
+    return
+  }
+
   try {
     loading.value = true
     error.value = null
@@ -240,10 +327,36 @@ async function generateLease() {
       tenant_id: formData.value.tenant_id,
       start_date: formData.value.start_date || '',
       duration_months: formData.value.duration_months,
+      lease_kind: formData.value.lease_kind,
+      is_colocation: formData.value.is_colocation,
+      tenant_count: formData.value.tenant_count,
+      destination: formData.value.destination,
       monthly_rent: formData.value.monthly_rent,
       charges: formData.value.charges,
       deposit: formData.value.deposit,
       rent_revision: formData.value.rent_revision,
+      habitable_surface: formData.value.habitable_surface,
+      main_room_count: formData.value.main_room_count,
+      heating_mode: formData.value.heating_mode,
+      hot_water_mode: formData.value.hot_water_mode,
+      dpe_class: formData.value.dpe_class,
+      is_dom_tom: formData.value.is_dom_tom,
+      energy_cost_annual: formData.value.energy_cost_annual || undefined,
+      energy_cost_year: formData.value.energy_cost_year || undefined,
+      rent_payment_frequency: formData.value.rent_payment_frequency,
+      rent_payment_timing: formData.value.rent_payment_timing,
+      rent_payment_period: formData.value.rent_payment_period || undefined,
+      rent_controlled: formData.value.rent_controlled,
+      reference_rent: formData.value.rent_controlled ? formData.value.reference_rent : undefined,
+      reference_rent_majorated: formData.value.rent_controlled ? formData.value.reference_rent_majorated : undefined,
+      rent_complement: formData.value.rent_controlled ? formData.value.rent_complement : undefined,
+      rent_complement_justification: formData.value.rent_complement_justification || undefined,
+      previous_tenant_departure_date: formData.value.previous_tenant_departure_date || undefined,
+      previous_tenant_last_rent: formData.value.previous_tenant_last_rent > 0 ? formData.value.previous_tenant_last_rent : undefined,
+      professional_mandate: formData.value.professional_mandate,
+      agency_fee_tenant: formData.value.professional_mandate ? formData.value.agency_fee_tenant : undefined,
+      agency_fee_landlord: formData.value.professional_mandate ? formData.value.agency_fee_landlord : undefined,
+      custom_clauses: formData.value.custom_clauses || undefined,
       annual_charges_regularization: false,
       inventory_date: formData.value.inventory_date || undefined,
       private_room_label: formData.value.private_room_label || undefined,
@@ -253,7 +366,12 @@ async function generateLease() {
       dpe: formData.value.dpe || undefined,
       erp: formData.value.erp || undefined,
       home_insurance: formData.value.home_insurance || undefined,
-      legal_notice_provided: formData.value.legal_notice_provided
+      legal_notice_provided: formData.value.legal_notice_provided,
+      annex_entry_inventory_provided: formData.value.annex_entry_inventory_provided,
+      annex_furniture_inventory_provided: property.value?.furnished ? formData.value.annex_furniture_inventory_provided : true,
+      annex_dpe_provided: formData.value.annex_dpe_provided,
+      annex_erp_provided: formData.value.annex_erp_provided,
+      annex_home_insurance_provided: formData.value.annex_home_insurance_provided,
     }
 
     const isCreating = !generatedLeaseId.value
@@ -351,6 +469,25 @@ function back() {
             <label for="duration">Durée (mois) *</label>
             <input type="number" id="duration" v-model="formData.duration_months" min="1" required />
           </div>
+
+          <div class="form-group">
+            <label for="leaseKind">Type de bail *</label>
+            <select id="leaseKind" v-model="formData.lease_kind">
+              <option value="standard">Meublé standard (12 mois+)</option>
+              <option value="student">Meublé étudiant (9 mois)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="surface">Surface habitable (m2) *</label>
+            <input type="number" id="surface" v-model="formData.habitable_surface" min="0.01" step="0.01" required />
+          </div>
+          <div class="form-group">
+            <label for="rooms">Pieces principales *</label>
+            <input type="number" id="rooms" v-model="formData.main_room_count" min="1" required />
+          </div>
         </div>
 
         <div class="form-row">
@@ -405,6 +542,100 @@ function back() {
             <input type="checkbox" v-model="formData.rent_revision" />
             Clause de révision du loyer
           </label>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group checkbox">
+            <label>
+              <input type="checkbox" v-model="formData.is_colocation" />
+              Colocation
+            </label>
+          </div>
+          <div class="form-group" v-if="formData.is_colocation">
+            <label for="tenantCount">Nombre de colocataires *</label>
+            <input type="number" id="tenantCount" v-model="formData.tenant_count" min="2" />
+          </div>
+          <div class="form-group" v-else>
+            <label for="tenantCountSingle">Nombre de locataires</label>
+            <input type="number" id="tenantCountSingle" v-model="formData.tenant_count" min="1" max="1" />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="dpeClass">Classe DPE *</label>
+            <select id="dpeClass" v-model="formData.dpe_class">
+              <option value="A">A</option>
+              <option value="B">B</option>
+              <option value="C">C</option>
+              <option value="D">D</option>
+              <option value="E">E</option>
+              <option value="F">F</option>
+              <option value="G">G</option>
+            </select>
+          </div>
+          <div class="form-group checkbox">
+            <label>
+              <input type="checkbox" v-model="formData.is_dom_tom" />
+              Logement en DOM-TOM
+            </label>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group checkbox">
+            <label>
+              <input type="checkbox" v-model="formData.rent_controlled" />
+              Zone encadree des loyers
+            </label>
+          </div>
+        </div>
+
+        <div class="form-row" v-if="formData.rent_controlled">
+          <div class="form-group">
+            <label for="referenceRent">Loyer de reference (EUR/m2) *</label>
+            <input type="number" id="referenceRent" v-model="formData.reference_rent" min="0" step="0.01" />
+          </div>
+          <div class="form-group">
+            <label for="referenceRentMajorated">Loyer de reference majore (EUR/m2) *</label>
+            <input type="number" id="referenceRentMajorated" v-model="formData.reference_rent_majorated" min="0" step="0.01" />
+          </div>
+        </div>
+
+        <div class="form-row" v-if="formData.rent_controlled">
+          <div class="form-group">
+            <label for="rentComplement">Complement de loyer (EUR)</label>
+            <input type="number" id="rentComplement" v-model="formData.rent_complement" min="0" step="0.01" />
+          </div>
+          <div class="form-group">
+            <label for="rentComplementJustification">Justification complement</label>
+            <input type="text" id="rentComplementJustification" v-model="formData.rent_complement_justification" />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group checkbox">
+            <label>
+              <input type="checkbox" v-model="formData.professional_mandate" />
+              Mandataire professionnel
+            </label>
+          </div>
+        </div>
+
+        <div class="form-row" v-if="formData.professional_mandate">
+          <div class="form-group">
+            <label for="agencyFeeTenant">Honoraires locataire (EUR) *</label>
+            <input type="number" id="agencyFeeTenant" v-model="formData.agency_fee_tenant" min="0" step="0.01" />
+          </div>
+          <div class="form-group">
+            <label for="agencyFeeLandlord">Honoraires bailleur (EUR) *</label>
+            <input type="number" id="agencyFeeLandlord" v-model="formData.agency_fee_landlord" min="0" step="0.01" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="customClauses">Clauses particulieres (controle legal applique)</label>
+          <textarea id="customClauses" v-model="formData.custom_clauses" rows="3" />
         </div>
 
         <div class="form-group legal-note">
@@ -476,6 +707,49 @@ function back() {
             <input type="checkbox" v-model="formData.legal_notice_provided" />
             Notice d'information légale locataire remise
           </label>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group checkbox">
+            <label>
+              <input type="checkbox" v-model="formData.annex_entry_inventory_provided" />
+              Annexe état des lieux d'entrée fournie
+            </label>
+          </div>
+          <div class="form-group checkbox" v-if="property?.furnished">
+            <label>
+              <input type="checkbox" v-model="formData.annex_furniture_inventory_provided" />
+              Annexe inventaire mobilier fournie
+            </label>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group checkbox">
+            <label>
+              <input type="checkbox" v-model="formData.annex_dpe_provided" />
+              Annexe DPE fournie
+            </label>
+          </div>
+          <div class="form-group checkbox">
+            <label>
+              <input type="checkbox" v-model="formData.annex_erp_provided" />
+              Annexe ERP fournie
+            </label>
+          </div>
+          <div class="form-group checkbox">
+            <label>
+              <input type="checkbox" v-model="formData.annex_home_insurance_provided" />
+              Attestation assurance fournie
+            </label>
+          </div>
+        </div>
+
+        <div v-if="complianceWarnings.length > 0" class="compliance-warning-box">
+          <strong>Points de conformite a corriger avant generation:</strong>
+          <ul>
+            <li v-for="warning in complianceWarnings" :key="warning">{{ warning }}</li>
+          </ul>
         </div>
 
         <button type="submit" class="btn-primary" :disabled="!formData.tenant_id || loading">
@@ -640,6 +914,19 @@ function back() {
 
 .btn-secondary:hover {
   background: #e0e0e0;
+}
+
+.compliance-warning-box {
+  border: 1px solid #e6a700;
+  background: #fff8e6;
+  color: #704d00;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
+
+.compliance-warning-box ul {
+  margin: 0.5rem 0 0;
+  padding-left: 1.2rem;
 }
 
 .error-state, .loading {

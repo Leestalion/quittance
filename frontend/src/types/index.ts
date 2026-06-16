@@ -144,6 +144,32 @@ export interface Lease {
   deposit: number
   rent_revision: boolean
   annual_charges_regularization: boolean
+  lease_kind: 'standard' | 'student'
+  is_colocation: boolean
+  tenant_count: number
+  destination: 'habitation' | 'mixte_professionnel_habitation'
+  habitable_surface?: number
+  main_room_count?: number
+  heating_mode?: 'individuel' | 'collectif'
+  hot_water_mode?: 'individuelle' | 'collective'
+  dpe_class?: 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G'
+  is_dom_tom: boolean
+  energy_cost_annual?: string
+  energy_cost_year?: number
+  rent_payment_frequency: 'mensuel' | 'trimestriel'
+  rent_payment_timing: 'a_echoir' | 'a_terme_echu'
+  rent_payment_period?: string
+  rent_controlled: boolean
+  reference_rent?: number
+  reference_rent_majorated?: number
+  rent_complement?: number
+  rent_complement_justification?: string
+  previous_tenant_departure_date?: string
+  previous_tenant_last_rent?: number
+  professional_mandate: boolean
+  agency_fee_tenant?: number
+  agency_fee_landlord?: number
+  custom_clauses?: string
   inventory_date?: string
   private_room_label?: string
   shared_areas_text?: string
@@ -153,6 +179,13 @@ export interface Lease {
   erp?: string
   home_insurance?: string
   legal_notice_provided: boolean
+  annex_entry_inventory_provided: boolean
+  annex_furniture_inventory_provided: boolean
+  annex_dpe_provided: boolean
+  annex_erp_provided: boolean
+  annex_home_insurance_provided: boolean
+  compliance_status: 'pending' | 'compliant' | 'non_compliant'
+  compliance_errors: string[]
   status: string
   pdf_path?: string
   created_at: string
@@ -229,6 +262,32 @@ export interface CreateLease {
   deposit: number
   rent_revision: boolean
   annual_charges_regularization: boolean
+  lease_kind?: 'standard' | 'student'
+  is_colocation?: boolean
+  tenant_count?: number
+  destination?: 'habitation' | 'mixte_professionnel_habitation'
+  habitable_surface?: number
+  main_room_count?: number
+  heating_mode?: 'individuel' | 'collectif'
+  hot_water_mode?: 'individuelle' | 'collective'
+  dpe_class?: 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G'
+  is_dom_tom?: boolean
+  energy_cost_annual?: string
+  energy_cost_year?: number
+  rent_payment_frequency?: 'mensuel' | 'trimestriel'
+  rent_payment_timing?: 'a_echoir' | 'a_terme_echu'
+  rent_payment_period?: string
+  rent_controlled?: boolean
+  reference_rent?: number
+  reference_rent_majorated?: number
+  rent_complement?: number
+  rent_complement_justification?: string
+  previous_tenant_departure_date?: string
+  previous_tenant_last_rent?: number
+  professional_mandate?: boolean
+  agency_fee_tenant?: number
+  agency_fee_landlord?: number
+  custom_clauses?: string
   inventory_date?: string
   private_room_label?: string
   shared_areas_text?: string
@@ -238,6 +297,11 @@ export interface CreateLease {
   erp?: string
   home_insurance?: string
   legal_notice_provided: boolean
+  annex_entry_inventory_provided?: boolean
+  annex_furniture_inventory_provided?: boolean
+  annex_dpe_provided?: boolean
+  annex_erp_provided?: boolean
+  annex_home_insurance_provided?: boolean
 }
 
 export interface CreateReceipt {
@@ -312,6 +376,9 @@ export interface LeaseData {
   terms: {
     startDate: string
     duration: number
+    leaseKind?: 'standard' | 'student'
+    isColocation?: boolean
+    tenantCount?: number
     monthlyRent: number
     charges: number
     deposit: number
@@ -320,6 +387,11 @@ export interface LeaseData {
     inventoryDate?: string
     privateRoomLabel?: string
     sharedAreasText?: string
+    rentControlled?: boolean
+    referenceRent?: number
+    referenceRentMajorated?: number
+    rentComplement?: number
+    rentComplementJustification?: string
   }
   annexes: {
     furnitureInventory?: string
@@ -331,5 +403,9 @@ export interface LeaseData {
     erp?: string
     homeInsurance?: string
     legalNoticeProvided: boolean
+    professionalMandate?: boolean
+    agencyFeeTenant?: number
+    agencyFeeLandlord?: number
+    customClauses?: string
   }
 }
