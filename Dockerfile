@@ -7,7 +7,7 @@ COPY frontend ./
 RUN npm run build
 
 # Stage 2: Build backend
-FROM lukemathwalker/cargo-chef:latest-rust-1 AS chef
+FROM lukemathwalker/cargo-chef:latest-rust-1-bookworm AS chef
 
 # Create and change to the app directory.
 WORKDIR /app
