@@ -70,3 +70,49 @@ The system MUST compute a lease compliance status and MUST prevent final real-li
 #### Scenario: Block final issuance when compliance checks fail
 - **WHEN** one or more mandatory legal checks fail
 - **THEN** the system blocks final issuance and reports actionable remediation items to the user
+
+### Requirement: PDF generation is server-side and persists canonical legal snapshot
+The system MUST generate lease PDFs server-side from a canonical lease contract snapshot, ensuring exact correspondence between persisted data and rendered output, enabling legal template versioning, and preventing frontend drift.
+
+#### Scenario: Generate canonical lease contract snapshot on persist
+- **WHEN** a lease is created or updated
+- **THEN** the system constructs and stores a canonical snapshot JSON containing: all nine legal sections (I-XI) with resolved fields, auto-generated mandatory clauses, conditional sections (colocation, student non-renewal, rent-control, etc.), user custom clauses, and metadata (generation date, template version, compliance status)
+
+#### Scenario: Render server-side PDF from canonical snapshot
+- **WHEN** a user requests a lease PDF
+- **THEN** the system fetches the canonical snapshot, assembles locked legal sections and validated custom clauses into an HTML/template, renders via server-side PDF engine, and returns the binary or download link
+- **NOTE**: Frontend never generates legal text or PDF dynamically; it only consumes the server-generated artifact
+
+#### Scenario: Preserve legal template version in snapshot
+- **WHEN** a lease snapshot is persisted
+- **THEN** the snapshot includes the legal template version (e.g., "2026-06-18") so that if legislation changes, regenerated PDFs for old leases preserve their original legal text
+
+### Requirement: Lease legal sections are locked (non-editable) and custom clauses are modifiable under validation
+The system MUST render sections I-VIII and XI (mandatory legal sections) as non-editable, auto-generated blocks, while allowing section X (Autres conditions particulières) to be freely edited under legal prohibition filters.
+
+#### Scenario: Render locked legal sections in UI and output
+- **WHEN** a lease form is displayed or a PDF is generated
+- **THEN** sections I (parties), II (object), III (duration/renewal), IV (financial), V (works), VI (guarantees), VII (solidarity if colocation), VIII (resolutory clause), and XI (annexes/notices) are shown as read-only informational blocks
+
+#### Scenario: Allow user-edited custom clauses in section X
+- **WHEN** a user edits custom clauses in section X (Autres conditions particulières)
+- **THEN** the system validates the text server-side to reject prohibited patterns (automatic payment as sole method, occupancy restrictions, illegal fees, etc.) and returns detailed rejection reasons if violations are found
+
+#### Scenario: Reject custom clauses containing prohibited terms
+- **WHEN** custom clause text contains any of: "prélèvement automatique comme seul mode", "interdiction d'héberger", "frais de quittance", or other legally prohibited patterns
+- **THEN** the system rejects the clause with a specific explanation of which prohibition was violated
+
+### Requirement: Non-compliant leases display watermark but remain downloadable as drafts
+The system MUST allow users to download lease PDFs even when `compliance_status != 'compliant'`, but MUST clearly mark them with a draft/non-compliant watermark to prevent accidental issuance of invalid contracts.
+
+#### Scenario: Apply watermark when compliance status is non_compliant
+- **WHEN** a lease has `compliance_status = 'non_compliant'` and a user downloads the PDF
+- **THEN** the PDF includes a diagonal watermark reading "PROJET / NON CONFORME" in semi-transparent gray across all pages
+
+#### Scenario: Display compliance warning in UI before download
+- **WHEN** a user views a lease with non-compliant status
+- **THEN** the frontend displays a prominent warning banner listing the specific compliance failures and encouraging remediation before final issuance
+
+#### Scenario: Only permit full archival/issuance when compliant
+- **WHEN** a user attempts to mark a lease as "officially issued" or "archived" for tenant communication
+- **THEN** the system blocks this action if `compliance_status != 'compliant'` and prompts the user to fix flagged issues

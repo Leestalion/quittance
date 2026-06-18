@@ -152,6 +152,8 @@ function back() {
   <LeasePreview 
     v-else-if="leaseData" 
     :data="leaseData" 
+    :lease-id="leaseId"
+    :compliance-status="lease?.compliance_status"
     @back="back"
   />
 </template>

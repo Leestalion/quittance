@@ -1,0 +1,27 @@
+{
+  "current_version": "2026-06-18",
+  "versions": [
+    {
+      "version": "2026-06-18",
+      "effective_date": "2026-06-18",
+      "language": "fr",
+      "legislative_refs": [
+        "Décret n°2015-587 du 29 mai 2015 modifié",
+        "Loi du 6 juillet 1989 relative aux rapports locatifs"
+      ],
+      "template_files": [
+        "layout.html",
+        "section_i_parties.html",
+        "section_ii_property.html",
+        "section_iii_duration.html",
+        "section_iv_financial.html",
+        "section_v_works.html",
+        "section_vi_guarantees.html",
+        "section_vii_solidarity.html",
+        "section_viii_resolutory.html",
+        "section_x_custom.html",
+        "section_xi_annexes.html"
+      ]
+    }
+  ]
+}

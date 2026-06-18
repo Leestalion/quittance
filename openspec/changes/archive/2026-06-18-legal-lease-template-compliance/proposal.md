@@ -9,6 +9,9 @@ Le flux de génération de bail meublé actuel n'assure pas une conformité comp
 - Introduire des règles conditionnelles exhaustives (colocation, zone encadrée, durée étudiant 9 mois, DOM/TOM, diagnostics selon conditions).
 - Imposer des clauses légales auto-générées non modifiables (notamment clause résolutoire obligatoire, texte article 5-I si mandataire professionnel).
 - Garantir que les documents générés sont exploitables en conditions réelles (mentions légales complètes, logique de conformité, contrôles bloquants/avertissements selon loi).
+- **Générer les PDFs côté serveur** à partir d'une snapshot canonique persisted, garantissant exactitude et versioning des templates légaux (si la loi change, les anciens PDFs conservent leur version légale originale).
+- **Architecture sections légales verrouillées + clauses personnalisées modifiables et validées** : sections I-XI auto-générées et non-éditables, section X (Autres conditions) seule éditable sous validation (interdiction de termes bannies).
+- **Filigrane "Projet/Non conforme"** pour les PDFs dont `compliance_status != 'compliant'`, permettant la révision sans bloquer l'exploration, mais prévenant l'émission accidentelle de contrats invalides.
 - **BREAKING**: certains baux auparavant générables avec données incomplètes ou incohérentes seront désormais bloqués tant que les exigences légales ne sont pas satisfaites.
 
 ## Capabilities

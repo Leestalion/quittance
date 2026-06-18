@@ -1,14 +1,23 @@
-use axum::{Router, routing::get, extract::{State, Path, Query}, Json, http::{StatusCode, HeaderMap}};
+use axum::{Router, routing::get, extract::{State, Path, Query}, Json, http::{StatusCode, HeaderMap, header}, response::Response, body::Body};
 use bigdecimal::BigDecimal;
 use chrono::NaiveDate;
 use serde::Deserialize;
 use uuid::Uuid;
+use std::path::PathBuf;
 use crate::{
     db::Database,
     models::lease::{Lease, CreateLease},
+    models::property::Property,
+    models::tenant::Tenant,
+    models::user::User,
+    models::canonical_snapshot::CanonicalSnapshot,
+    services::pdf_renderer::PdfRenderer,
     error::AppError,
     routes::auth::extract_user_id_from_headers,
 };
+
+/// Current legal template version used for new lease snapshots.
+const CURRENT_LEGAL_TEMPLATE_VERSION: &str = "2026-06-18";
 
 #[derive(Debug, Deserialize)]
 struct LeaseQuery {
@@ -180,6 +189,8 @@ pub fn router() -> Router<Database> {
     Router::new()
         .route("/", get(list_leases).post(create_lease))
     .route("/:id", get(get_lease).put(update_lease).delete(delete_lease))
+    .route("/:id/pdf", get(generate_lease_pdf))
+    .route("/:id/snapshot", get(get_lease_snapshot))
 }
 
 async fn ensure_property_access(db: &Database, property_id: Uuid, user_id: Uuid) -> Result<(), AppError> {
@@ -318,6 +329,122 @@ async fn fetch_lease_by_id(db: &Database, id: Uuid) -> Result<Lease, AppError> {
     .ok_or_else(|| AppError::NotFound(format!("Lease with id {} not found", id)))?;
 
     Ok(lease)
+}
+
+async fn fetch_property_by_id(db: &Database, id: Uuid) -> Result<Property, AppError> {
+    sqlx::query_as::<_, Property>("SELECT * FROM properties WHERE id = $1")
+        .bind(id)
+        .fetch_optional(&db.pool)
+        .await?
+        .ok_or_else(|| AppError::NotFound(format!("Property with id {} not found", id)))
+}
+
+async fn fetch_tenant_by_id(db: &Database, id: Uuid) -> Result<Tenant, AppError> {
+    sqlx::query_as::<_, Tenant>("SELECT * FROM tenants WHERE id = $1")
+        .bind(id)
+        .fetch_optional(&db.pool)
+        .await?
+        .ok_or_else(|| AppError::NotFound(format!("Tenant with id {} not found", id)))
+}
+
+async fn fetch_user_by_id(db: &Database, id: Uuid) -> Result<User, AppError> {
+    sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1")
+        .bind(id)
+        .fetch_optional(&db.pool)
+        .await?
+        .ok_or_else(|| AppError::NotFound(format!("User with id {} not found", id)))
+}
+
+/// Resolve the legal_templates directory path (overridable via env for deployment).
+fn legal_templates_dir() -> PathBuf {
+    std::env::var("LEGAL_TEMPLATES_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from("src/legal_templates"))
+}
+
+/// Build a canonical snapshot for a lease by loading its related entities.
+/// The landlord is the property owner; falls back to the requesting user for
+/// organization-owned properties without a direct owner.
+async fn build_snapshot_for_lease(
+    db: &Database,
+    lease: &Lease,
+    requesting_user_id: Uuid,
+) -> Result<CanonicalSnapshot, AppError> {
+    let property = fetch_property_by_id(db, lease.property_id).await?;
+    let tenant = fetch_tenant_by_id(db, lease.tenant_id).await?;
+    let landlord_id = property.user_id.unwrap_or(requesting_user_id);
+    let landlord = fetch_user_by_id(db, landlord_id).await?;
+
+    Ok(CanonicalSnapshot::from_entities(
+        lease,
+        &property,
+        &tenant,
+        &landlord,
+        CURRENT_LEGAL_TEMPLATE_VERSION.to_string(),
+    ))
+}
+
+/// GET /api/leases/{id}/pdf
+/// Generate a server-side PDF from the canonical lease snapshot.
+/// Non-compliant leases receive a "PROJET / NON CONFORME" watermark.
+async fn generate_lease_pdf(
+    State(db): State<Database>,
+    headers: HeaderMap,
+    Path(id): Path<Uuid>,
+) -> Result<Response, AppError> {
+    let user_id = extract_user_id_from_headers(&headers)?;
+    ensure_lease_access(&db, id, user_id).await?;
+
+    let lease = fetch_lease_by_id(&db, id).await?;
+    let snapshot = build_snapshot_for_lease(&db, &lease, user_id).await?;
+
+    let wkhtmltopdf_path = std::env::var("WKHTMLTOPDF_PATH")
+        .unwrap_or_else(|_| "wkhtmltopdf".to_string());
+    let timeout_secs = std::env::var("PDF_GENERATION_TIMEOUT_SECS")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(30);
+
+    let renderer = PdfRenderer::new(&legal_templates_dir(), wkhtmltopdf_path, timeout_secs)
+        .map_err(|e| {
+            tracing::error!("Failed to initialize PDF renderer: {}", e);
+            AppError::Internal
+        })?;
+
+    let pdf_bytes = renderer.generate_pdf(&snapshot).await.map_err(|e| {
+        tracing::error!("PDF generation failed for lease {}: {}", id, e);
+        AppError::BadRequest(format!("PDF generation failed: {}", e))
+    })?;
+
+    let filename = format!("bail_{}.pdf", id);
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "application/pdf")
+        .header(
+            header::CONTENT_DISPOSITION,
+            format!("attachment; filename=\"{}\"", filename),
+        )
+        .body(Body::from(pdf_bytes))
+        .map_err(|e| {
+            tracing::error!("Failed to build PDF response: {}", e);
+            AppError::Internal
+        })
+}
+
+/// GET /api/leases/{id}/snapshot
+/// Return the canonical lease snapshot JSON (used for preview/debugging).
+async fn get_lease_snapshot(
+    State(db): State<Database>,
+    headers: HeaderMap,
+    Path(id): Path<Uuid>,
+) -> Result<Json<CanonicalSnapshot>, AppError> {
+    let user_id = extract_user_id_from_headers(&headers)?;
+    ensure_lease_access(&db, id, user_id).await?;
+
+    let lease = fetch_lease_by_id(&db, id).await?;
+    let snapshot = build_snapshot_for_lease(&db, &lease, user_id).await?;
+
+    Ok(Json(snapshot))
 }
 
 async fn list_leases(

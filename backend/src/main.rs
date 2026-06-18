@@ -15,6 +15,7 @@ mod routes;
 mod models;
 mod db;
 mod error;
+mod services;
 
 use db::Database;
 

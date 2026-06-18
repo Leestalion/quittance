@@ -41,15 +41,21 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     libssl3 \
+    wkhtmltopdf \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy only the compiled binary
 COPY --from=builder /app/backend/target/release/quittance /usr/local/bin/quittance
 
+# Copy legal templates (read at runtime by the server-side PDF renderer)
+COPY backend/src/legal_templates /app/legal_templates
+
 # Copy frontend dist
 COPY --from=frontend /frontend/dist /app/frontend/dist
 
 ENV FRONTEND_PATH=/app/frontend/dist
+ENV LEGAL_TEMPLATES_DIR=/app/legal_templates
+ENV WKHTMLTOPDF_PATH=/usr/bin/wkhtmltopdf
 ENV RUST_LOG=info
 
 EXPOSE 8080

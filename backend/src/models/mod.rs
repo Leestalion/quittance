@@ -5,3 +5,4 @@ pub mod tenant;
 pub mod lease;
 pub mod receipt;
 pub mod organization;
+pub mod canonical_snapshot;

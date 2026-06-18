@@ -160,6 +160,25 @@ export const leasesAPI = {
 
   async delete(id: string): Promise<void> {
     await apiClient.delete(`/leases/${id}`)
+  },
+
+  /**
+   * Download the server-generated lease PDF as a Blob.
+   * Non-compliant leases are returned with a "PROJET / NON CONFORME" watermark.
+   */
+  async downloadPdf(id: string): Promise<Blob> {
+    const response = await apiClient.get(`/leases/${id}/pdf`, {
+      responseType: 'blob',
+    })
+    return response.data
+  },
+
+  /**
+   * Fetch the canonical lease snapshot JSON (for preview/debugging).
+   */
+  async getSnapshot(id: string): Promise<unknown> {
+    const response = await apiClient.get(`/leases/${id}/snapshot`)
+    return response.data
   }
 }
 

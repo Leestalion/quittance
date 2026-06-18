@@ -25,6 +25,7 @@ const error = ref<string | null>(null)
 const showPreview = ref(false)
 const isNewlyCreated = ref(false)
 const generatedLeaseId = ref<string | null>(null)
+const generatedComplianceStatus = ref<string | null>(null)
 const furnitureSets = ref<FurnitureSet[]>([])
 const selectedFurnitureSets = ref<FurnitureSetWithItems[]>([])
 
@@ -380,6 +381,7 @@ async function generateLease() {
       : await leasesStore.updateLease(generatedLeaseId.value as string, payload)
 
     generatedLeaseId.value = lease.id
+    generatedComplianceStatus.value = lease.compliance_status ?? null
     isNewlyCreated.value = isCreating
 
     if (!isCreating) {
@@ -763,6 +765,8 @@ function back() {
     v-else-if="leaseData" 
     :data="leaseData"
     :property-id="propertyId"
+    :lease-id="generatedLeaseId ?? undefined"
+    :compliance-status="generatedComplianceStatus ?? undefined"
     :is-newly-created="isNewlyCreated"
     @back="back"
   />
