@@ -9,6 +9,9 @@ pub struct Lease {
     pub id: Uuid,
     pub property_id: Uuid,
     pub tenant_id: Uuid,
+    /// Ordered set of all named tenants (parties) of the lease, primary first.
+    /// For a colocation lease this lists every colocataire.
+    pub tenant_ids: Vec<Uuid>,
     pub start_date: NaiveDate,
     pub end_date: Option<NaiveDate>,
     pub duration_months: i32,
@@ -68,7 +71,9 @@ pub struct Lease {
 #[derive(Debug, Deserialize)]
 pub struct CreateLease {
     pub property_id: Uuid,
-    pub tenant_id: Uuid,
+    /// Named tenants (parties) of the lease, in order; the first is the primary.
+    /// Colocation requires at least two; otherwise exactly one.
+    pub tenant_ids: Vec<Uuid>,
     pub start_date: NaiveDate,
     pub duration_months: i32,
     pub monthly_rent: BigDecimal,
@@ -78,7 +83,6 @@ pub struct CreateLease {
     pub annual_charges_regularization: bool,
     pub lease_kind: Option<String>,
     pub is_colocation: Option<bool>,
-    pub tenant_count: Option<i32>,
     pub destination: Option<String>,
     pub habitable_surface: Option<BigDecimal>,
     pub main_room_count: Option<i32>,

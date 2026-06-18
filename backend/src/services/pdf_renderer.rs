@@ -107,11 +107,63 @@ impl TemplateCache {
         
         Ok(result)
     }
+
+    /// Render a single lessee's designation line for Section I.
+    fn render_lessee_line(
+        full_name: &str,
+        address: &str,
+        birth_date: Option<String>,
+        birth_place: Option<&str>,
+    ) -> String {
+        let birth = match (birth_date, birth_place) {
+            (Some(d), Some(p)) if !p.is_empty() => format!(", né(e) le {} à {}", d, p),
+            _ => String::new(),
+        };
+        format!("<strong>{}</strong>{}, demeurant à {}", full_name, birth, address)
+    }
     
     /// Generate full HTML document from canonical snapshot
     pub fn render_full_html(&self, snapshot: &CanonicalSnapshot) -> TemplateResult<String> {
         let version = &snapshot.legal_template_version;
-        
+
+        // Build the lessees block: one line per named colocataire (parties of the lease).
+        let lessees_block = if snapshot.parties.lessees.is_empty() {
+            // Fallback to the primary lessee fields.
+            Self::render_lessee_line(
+                &snapshot.parties.lessee_full_name,
+                &snapshot.parties.lessee_address,
+                snapshot.parties.lessee_birth_date.as_ref().map(|d| d.to_string()),
+                snapshot.parties.lessee_birth_place.as_deref(),
+            )
+        } else {
+            snapshot
+                .parties
+                .lessees
+                .iter()
+                .map(|l| {
+                    Self::render_lessee_line(
+                        &l.full_name,
+                        &l.address,
+                        l.birth_date.as_ref().map(|d| d.to_string()),
+                        l.birth_place.as_deref(),
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join("<br>")
+        };
+
+        // Build a signature line per lessee (each colocataire signs).
+        let lessee_names: Vec<String> = if snapshot.parties.lessees.is_empty() {
+            vec![snapshot.parties.lessee_full_name.clone()]
+        } else {
+            snapshot.parties.lessees.iter().map(|l| l.full_name.clone()).collect()
+        };
+        let lessee_signatures_block = lessee_names
+            .iter()
+            .map(|name| format!("<div class=\"signature-line\">Le locataire<br>{}</div>", name))
+            .collect::<Vec<_>>()
+            .join("\n");
+
         // Build context object with all snapshot fields
         let context = json!({
             "landlord_full_name": snapshot.parties.landlord_full_name,
@@ -122,6 +174,8 @@ impl TemplateCache {
             "lessee_email": snapshot.parties.lessee_email,
             "lessee_birth_date": snapshot.parties.lessee_birth_date.map(|d| d.to_string()),
             "lessee_birth_place": snapshot.parties.lessee_birth_place,
+            "lessees_block": lessees_block,
+            "lessee_signatures_block": lessee_signatures_block,
             "property_address": snapshot.property.address,
             "property_type": snapshot.property.property_type,
             "habitable_surface": snapshot.property.habitable_surface,
@@ -144,6 +198,9 @@ impl TemplateCache {
             "dpe_class": snapshot.diagnostics.dpe_class,
             "energy_cost_annual": snapshot.diagnostics.energy_cost_annual,
             "compliance_status": snapshot.compliance.compliance_status,
+            // Professional mandate / agency fees (section IX)
+            "agency_fee_tenant": snapshot.professional_mandate.agency_fee_tenant,
+            "agency_fee_landlord": snapshot.professional_mandate.agency_fee_landlord,
             // Pre-generated legal section texts (source of truth from snapshot)
             "section_iii_text": snapshot.lease_sections.section_iii_duration.text,
             "section_vii_text": snapshot.lease_sections.section_vii_solidarity.text,
@@ -169,6 +226,11 @@ impl TemplateCache {
             String::new()
         };
         let section_viii = self.render_section(version, "section_viii_resolutory", &context)?;
+        let section_ix = if snapshot.professional_mandate.applies {
+            self.render_section(version, "section_ix_fees", &context)?
+        } else {
+            String::new()
+        };
         let section_x = self.render_section(version, "section_x_custom", &context)?;
         let section_xi = self.render_section(version, "section_xi_annexes", &context)?;
         
@@ -189,6 +251,7 @@ impl TemplateCache {
         layout = layout.replace("{{section_vi_guarantees}}", &section_vi);
         layout = layout.replace("{{section_vii_solidarity}}", &section_vii);
         layout = layout.replace("{{section_viii_resolutory}}", &section_viii);
+        layout = layout.replace("{{section_ix_fees}}", &section_ix);
         layout = layout.replace("{{section_x_custom}}", &section_x);
         layout = layout.replace("{{section_xi_annexes}}", &section_xi);
         layout = layout.replace("{{watermark_placeholder}}", watermark);
@@ -216,16 +279,23 @@ impl PdfRenderer {
             pdf_timeout_secs: timeout_secs,
         })
     }
+
+    /// Render the canonical lease HTML from a snapshot.
+    /// This is the single source of truth shared by the on-screen preview and the PDF.
+    pub fn render_html(&self, snapshot: &CanonicalSnapshot) -> TemplateResult<String> {
+        self.template_cache.render_full_html(snapshot)
+    }
     
     /// Generate PDF from canonical snapshot
     pub async fn generate_pdf(&self, snapshot: &CanonicalSnapshot) -> TemplateResult<Vec<u8>> {
         // Render HTML from snapshot
         let html = self.template_cache.render_full_html(snapshot)?;
         
-        // Call wkhtmltopdf to convert HTML to PDF
+        // Call wkhtmltopdf to convert HTML to PDF.
+        // Global options (margins, page size, encoding) MUST come before the
+        // input/output arguments, otherwise wkhtmltopdf errors with
+        // "specified in incorrect location".
         let output = Command::new(&self.wkhtmltopdf_path)
-            .arg("-")  // Read HTML from stdin
-            .arg("-")  // Write PDF to stdout
             .arg("--disable-smart-shrinking")
             .arg("--margin-top").arg("20")
             .arg("--margin-bottom").arg("20")
@@ -233,6 +303,8 @@ impl PdfRenderer {
             .arg("--margin-right").arg("20")
             .arg("--page-size").arg("A4")
             .arg("--encoding").arg("UTF-8")
+            .arg("-")  // Read HTML from stdin
+            .arg("-")  // Write PDF to stdout
             .stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
@@ -340,6 +412,25 @@ mod tests {
         let snapshot = make_snapshot(false, "compliant", Some("Animaux autorisés."));
         let html = cache.render_full_html(&snapshot).expect("render ok");
         assert!(html.contains("Animaux autorisés."));
+    }
+
+    #[test]
+    fn preview_and_pdf_share_same_html_source() {
+        // The PdfRenderer.render_html method and the PDF generation path both call
+        // template_cache.render_full_html, so preview HTML === PDF source HTML.
+        let renderer = PdfRenderer::new(
+            Path::new("src/legal_templates"),
+            "wkhtmltopdf".to_string(),
+            30,
+        )
+        .expect("renderer loads");
+        let snapshot = make_snapshot(false, "compliant", None);
+        let preview_html = renderer.render_html(&snapshot).expect("render ok");
+        let direct_html = renderer
+            .template_cache
+            .render_full_html(&snapshot)
+            .expect("render ok");
+        assert_eq!(preview_html, direct_html);
     }
 }
 

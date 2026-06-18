@@ -174,6 +174,17 @@ export const leasesAPI = {
   },
 
   /**
+   * Fetch the canonical lease HTML used for on-screen preview and print.
+   * This is the single source of truth shared with the PDF renderer.
+   */
+  async getPreviewHtml(id: string): Promise<string> {
+    const response = await apiClient.get(`/leases/${id}/preview`, {
+      responseType: 'text',
+    })
+    return response.data
+  },
+
+  /**
    * Fetch the canonical lease snapshot JSON (for preview/debugging).
    */
   async getSnapshot(id: string): Promise<unknown> {

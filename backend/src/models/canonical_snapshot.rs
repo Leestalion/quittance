@@ -35,11 +35,25 @@ pub struct PartiesSection {
     pub landlord_full_name: String,
     pub landlord_address: String,
     pub landlord_phone: Option<String>,
+    // Primary lessee (kept for display/contact continuity).
     pub lessee_full_name: String,
     pub lessee_address: String,
     pub lessee_email: Option<String>,
     pub lessee_birth_date: Option<NaiveDate>,
     pub lessee_birth_place: Option<String>,
+    /// All named lessees (parties) of the lease, primary first. For a colocation
+    /// lease this lists every colocataire.
+    #[serde(default)]
+    pub lessees: Vec<LesseeParty>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LesseeParty {
+    pub full_name: String,
+    pub address: String,
+    pub email: Option<String>,
+    pub birth_date: Option<NaiveDate>,
+    pub birth_place: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -185,6 +199,7 @@ impl CanonicalSnapshot {
                 lessee_email: None,
                 lessee_birth_date: None,
                 lessee_birth_place: None,
+                lessees: Vec::new(),
             },
             property: PropertySection {
                 address: String::new(),
@@ -408,25 +423,41 @@ impl CanonicalSnapshot {
     /// This is the source of truth for PDF rendering. It resolves all legal
     /// sections, auto-generates mandatory clauses, and applies conditional logic
     /// (e.g., student lease non-renewal, colocation solidarity).
+    ///
+    /// `tenants` is the ordered set of named lessees (parties), primary first.
     pub fn from_entities(
         lease: &Lease,
         property: &Property,
-        tenant: &Tenant,
+        tenants: &[Tenant],
         landlord: &User,
         legal_template_version: String,
     ) -> Self {
         let mut snapshot = Self::new(lease.id, legal_template_version);
+
+        let primary_tenant = tenants
+            .first()
+            .expect("a lease must have at least one tenant");
 
         // --- Parties ---
         snapshot.parties = PartiesSection {
             landlord_full_name: landlord.name.clone(),
             landlord_address: landlord.address.clone(),
             landlord_phone: landlord.phone.clone(),
-            lessee_full_name: tenant.name.clone(),
-            lessee_address: tenant.address.clone().unwrap_or_default(),
-            lessee_email: tenant.email.clone(),
-            lessee_birth_date: tenant.birth_date,
-            lessee_birth_place: tenant.birth_place.clone(),
+            lessee_full_name: primary_tenant.name.clone(),
+            lessee_address: primary_tenant.address.clone().unwrap_or_default(),
+            lessee_email: primary_tenant.email.clone(),
+            lessee_birth_date: primary_tenant.birth_date,
+            lessee_birth_place: primary_tenant.birth_place.clone(),
+            lessees: tenants
+                .iter()
+                .map(|t| LesseeParty {
+                    full_name: t.name.clone(),
+                    address: t.address.clone().unwrap_or_default(),
+                    email: t.email.clone(),
+                    birth_date: t.birth_date,
+                    birth_place: t.birth_place.clone(),
+                })
+                .collect(),
         };
 
         // --- Property ---
@@ -530,12 +561,17 @@ impl CanonicalSnapshot {
 
         // --- Section VII: colocation solidarity (conditional) ---
         if lease.is_colocation {
-            snapshot.lease_sections.section_vii_solidarity.text = Some(
-                "En cas de colocation, les colocataires sont tenus solidairement et \
+            let names = tenants
+                .iter()
+                .map(|t| t.name.clone())
+                .collect::<Vec<_>>()
+                .join(", ");
+            snapshot.lease_sections.section_vii_solidarity.text = Some(format!(
+                "En cas de colocation, les colocataires ({}) sont tenus solidairement et \
                  indivisiblement au paiement du loyer et des charges, ainsi qu'à \
-                 l'exécution de l'ensemble des obligations du présent bail."
-                    .to_string(),
-            );
+                 l'exécution de l'ensemble des obligations du présent bail.",
+                names
+            ));
         }
 
         // --- Section VIII: mandatory resolutory clause (locked) ---
@@ -573,5 +609,241 @@ impl CanonicalSnapshot {
         };
 
         snapshot
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::lease::Lease;
+    use crate::models::property::Property;
+    use crate::models::tenant::Tenant;
+    use crate::models::user::User;
+    use bigdecimal::BigDecimal;
+    use chrono::NaiveDate;
+
+    fn make_lease(lease_kind: &str, duration_months: i32) -> Lease {
+        Lease {
+            id: Uuid::new_v4(),
+            property_id: Uuid::new_v4(),
+            tenant_id: Uuid::new_v4(),
+            tenant_ids: vec![Uuid::new_v4()],
+            start_date: NaiveDate::from_ymd_opt(2026, 7, 1).unwrap(),
+            end_date: Some(NaiveDate::from_ymd_opt(2027, 6, 30).unwrap()),
+            duration_months,
+            monthly_rent: BigDecimal::from(800),
+            charges: BigDecimal::from(50),
+            deposit: BigDecimal::from(1600),
+            rent_revision: false,
+            annual_charges_regularization: false,
+            lease_kind: lease_kind.to_string(),
+            is_colocation: false,
+            tenant_count: 1,
+            destination: "habitation".to_string(),
+            habitable_surface: Some(BigDecimal::from(45)),
+            main_room_count: Some(2),
+            heating_mode: Some("individuel".to_string()),
+            hot_water_mode: Some("individuelle".to_string()),
+            dpe_class: Some("D".to_string()),
+            is_dom_tom: false,
+            energy_cost_annual: Some("1200".to_string()),
+            energy_cost_year: Some(2026),
+            rent_payment_frequency: "mensuel".to_string(),
+            rent_payment_timing: "a_echoir".to_string(),
+            rent_payment_period: Some("le 1er".to_string()),
+            rent_controlled: false,
+            reference_rent: None,
+            reference_rent_majorated: None,
+            rent_complement: None,
+            rent_complement_justification: None,
+            previous_tenant_departure_date: None,
+            previous_tenant_last_rent: None,
+            professional_mandate: false,
+            agency_fee_tenant: None,
+            agency_fee_landlord: None,
+            custom_clauses: None,
+            inventory_date: None,
+            private_room_label: None,
+            shared_areas_text: None,
+            furniture_set_ids: vec![],
+            furniture_inventory: None,
+            dpe: None,
+            erp: None,
+            home_insurance: None,
+            legal_notice_provided: true,
+            annex_entry_inventory_provided: true,
+            annex_furniture_inventory_provided: true,
+            annex_dpe_provided: true,
+            annex_erp_provided: true,
+            annex_home_insurance_provided: true,
+            compliance_status: "compliant".to_string(),
+            compliance_errors: vec![],
+            status: "active".to_string(),
+            pdf_path: None,
+            created_at: None,
+            updated_at: None,
+        }
+    }
+
+    fn make_property() -> Property {
+        Property {
+            id: Uuid::new_v4(),
+            user_id: Some(Uuid::new_v4()),
+            organization_id: None,
+            address: "1 rue de Paris".to_string(),
+            property_type: "apartment".to_string(),
+            furnished: true,
+            surface_area: Some(BigDecimal::from(45)),
+            rooms: Some(2),
+            max_occupants: 2,
+            description: None,
+            created_at: None,
+            updated_at: None,
+        }
+    }
+
+    fn make_tenant() -> Tenant {
+        Tenant {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            name: "Marie Martin".to_string(),
+            email: Some("marie@example.com".to_string()),
+            phone: None,
+            address: Some("2 avenue Lyon".to_string()),
+            birth_date: None,
+            birth_place: None,
+            notes: None,
+            created_at: None,
+            updated_at: None,
+        }
+    }
+
+    fn make_landlord() -> User {
+        User {
+            id: Uuid::new_v4(),
+            email: "jean@example.com".to_string(),
+            password_hash: "x".to_string(),
+            name: "Jean Dupont".to_string(),
+            address: "3 boulevard".to_string(),
+            phone: None,
+            birth_date: None,
+            birth_place: None,
+            created_at: None,
+            updated_at: None,
+        }
+    }
+
+    #[test]
+    fn student_lease_has_no_automatic_renewal() {
+        let lease = make_lease("student", 9);
+        let snapshot = CanonicalSnapshot::from_entities(
+            &lease,
+            &make_property(),
+            &[make_tenant()],
+            &make_landlord(),
+            "2026-06-18".to_string(),
+        );
+        assert!(!snapshot.lease_terms.auto_renewal);
+        let text = snapshot
+            .lease_sections
+            .section_iii_duration
+            .text
+            .unwrap();
+        assert!(text.contains("ne se renouvelle pas"));
+    }
+
+    #[test]
+    fn standard_lease_has_automatic_renewal() {
+        let lease = make_lease("standard", 12);
+        let snapshot = CanonicalSnapshot::from_entities(
+            &lease,
+            &make_property(),
+            &[make_tenant()],
+            &make_landlord(),
+            "2026-06-18".to_string(),
+        );
+        assert!(snapshot.lease_terms.auto_renewal);
+        let text = snapshot
+            .lease_sections
+            .section_iii_duration
+            .text
+            .unwrap();
+        assert!(text.contains("tacite reconduction"));
+    }
+
+    #[test]
+    fn snapshot_survives_json_round_trip() {
+        // Guards the persist (to_value) / load (from_value) path used by the DB column.
+        let lease = make_lease("standard", 12);
+        let snapshot = CanonicalSnapshot::from_entities(
+            &lease,
+            &make_property(),
+            &[make_tenant()],
+            &make_landlord(),
+            "2026-06-18".to_string(),
+        );
+        let value = serde_json::to_value(&snapshot).expect("serialize");
+        let restored: CanonicalSnapshot = serde_json::from_value(value).expect("deserialize");
+        assert_eq!(restored.legal_template_version, "2026-06-18");
+        assert_eq!(
+            restored.lease_terms.auto_renewal,
+            snapshot.lease_terms.auto_renewal
+        );
+    }
+
+    #[test]
+    fn template_version_recorded_in_snapshot() {
+        let lease = make_lease("standard", 12);
+        let snapshot = CanonicalSnapshot::from_entities(
+            &lease,
+            &make_property(),
+            &[make_tenant()],
+            &make_landlord(),
+            "2026-06-18".to_string(),
+        );
+        assert_eq!(snapshot.legal_template_version, "2026-06-18");
+    }
+
+    fn named_tenant(name: &str) -> Tenant {
+        let mut t = make_tenant();
+        t.id = Uuid::new_v4();
+        t.name = name.to_string();
+        t
+    }
+
+    #[test]
+    fn snapshot_lists_all_colocataires() {
+        let mut lease = make_lease("standard", 12);
+        lease.is_colocation = true;
+        lease.tenant_count = 2;
+        let tenants = [named_tenant("Alice Martin"), named_tenant("Bob Durand")];
+        let snapshot = CanonicalSnapshot::from_entities(
+            &lease,
+            &make_property(),
+            &tenants,
+            &make_landlord(),
+            "2026-06-18".to_string(),
+        );
+        // Parties carry both named lessees, primary first.
+        assert_eq!(snapshot.parties.lessees.len(), 2);
+        assert_eq!(snapshot.parties.lessee_full_name, "Alice Martin");
+        // Solidarity clause references the named colocataires.
+        let vii = snapshot.lease_sections.section_vii_solidarity.text.unwrap();
+        assert!(vii.contains("Alice Martin"));
+        assert!(vii.contains("Bob Durand"));
+    }
+
+    #[test]
+    fn single_tenant_snapshot_has_no_solidarity_clause() {
+        let lease = make_lease("standard", 12);
+        let snapshot = CanonicalSnapshot::from_entities(
+            &lease,
+            &make_property(),
+            &[named_tenant("Solo Tenant")],
+            &make_landlord(),
+            "2026-06-18".to_string(),
+        );
+        assert_eq!(snapshot.parties.lessees.len(), 1);
+        assert!(snapshot.lease_sections.section_vii_solidarity.text.is_none());
     }
 }

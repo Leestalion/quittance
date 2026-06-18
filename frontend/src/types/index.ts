@@ -136,6 +136,7 @@ export interface Lease {
   id: string
   property_id: string
   tenant_id: string
+  tenant_ids: string[]
   start_date: string
   end_date?: string
   duration_months: number
@@ -254,7 +255,7 @@ export interface CreateTenant {
 
 export interface CreateLease {
   property_id: string
-  tenant_id: string
+  tenant_ids: string[]
   start_date: string
   duration_months: number
   monthly_rent: number
@@ -264,7 +265,6 @@ export interface CreateLease {
   annual_charges_regularization: boolean
   lease_kind?: 'standard' | 'student'
   is_colocation?: boolean
-  tenant_count?: number
   destination?: 'habitation' | 'mixte_professionnel_habitation'
   habitable_surface?: number
   main_room_count?: number

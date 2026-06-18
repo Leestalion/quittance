@@ -31,12 +31,11 @@ const selectedFurnitureSets = ref<FurnitureSetWithItems[]>([])
 
 // Form data
 const formData = ref({
-  tenant_id: '',
+  tenant_ids: [] as string[],
   start_date: new Date().toISOString().split('T')[0],
   duration_months: 12,
   lease_kind: 'standard' as 'standard' | 'student',
   is_colocation: false,
-  tenant_count: 1,
   destination: 'habitation' as 'habitation' | 'mixte_professionnel_habitation',
   monthly_rent: 0,
   charges: 0,
@@ -69,7 +68,6 @@ const formData = ref({
   shared_areas_text: '',
   furniture_set_ids: [] as string[],
   furniture_inventory: '',
-  dpe: '',
   erp: '',
   home_insurance: '',
   legal_notice_provided: true,
@@ -83,23 +81,25 @@ const formData = ref({
 const propertyId = computed(() => route.params.propertyId as string)
 const property = computed(() => propertiesStore.getPropertyById(propertyId.value))
 const allTenants = computed(() => tenantsStore.tenants)
-const selectedTenant = computed(() => 
-  tenantsStore.getTenantById(formData.value.tenant_id)
+const primaryTenant = computed(() =>
+  tenantsStore.getTenantById(formData.value.tenant_ids[0] ?? '')
 )
 const isEditMode = computed(() => generatedLeaseId.value !== null)
 
 const complianceWarnings = computed(() => {
-  return buildComplianceWarnings(formData.value)
+  return buildComplianceWarnings(
+    { ...formData.value, tenant_count: formData.value.tenant_ids.length },
+    property.value?.furnished ?? false,
+  )
 })
 
 function applyLeaseToForm(lease: Lease) {
   formData.value = {
-    tenant_id: lease.tenant_id,
+    tenant_ids: lease.tenant_ids && lease.tenant_ids.length > 0 ? [...lease.tenant_ids] : [lease.tenant_id],
     start_date: lease.start_date,
     duration_months: lease.duration_months,
     lease_kind: lease.lease_kind,
     is_colocation: lease.is_colocation,
-    tenant_count: lease.tenant_count,
     destination: lease.destination,
     monthly_rent: Number(lease.monthly_rent),
     charges: Number(lease.charges),
@@ -132,7 +132,6 @@ function applyLeaseToForm(lease: Lease) {
     shared_areas_text: lease.shared_areas_text || '',
     furniture_set_ids: [...lease.furniture_set_ids],
     furniture_inventory: lease.furniture_inventory || '',
-    dpe: lease.dpe || '',
     erp: lease.erp || '',
     home_insurance: lease.home_insurance || '',
     legal_notice_provided: lease.legal_notice_provided,
@@ -145,7 +144,7 @@ function applyLeaseToForm(lease: Lease) {
 }
 
 const leaseData = computed<LeaseData | null>(() => {
-  if (!property.value || !selectedTenant.value) return null
+  if (!property.value || !primaryTenant.value) return null
 
   // Determine landlord based on property ownership
   let landlordData
@@ -179,10 +178,10 @@ const leaseData = computed<LeaseData | null>(() => {
   return {
     landlord: landlordData,
     tenant: {
-      name: selectedTenant.value.name,
-      address: selectedTenant.value.address || '',
-      birthDate: selectedTenant.value.birth_date,
-      birthPlace: selectedTenant.value.birth_place
+      name: primaryTenant.value.name,
+      address: primaryTenant.value.address || '',
+      birthDate: primaryTenant.value.birth_date,
+      birthPlace: primaryTenant.value.birth_place
     },
     property: {
       address: property.value.address,
@@ -196,7 +195,7 @@ const leaseData = computed<LeaseData | null>(() => {
       duration: formData.value.duration_months,
       leaseKind: formData.value.lease_kind,
       isColocation: formData.value.is_colocation,
-      tenantCount: formData.value.tenant_count,
+      tenantCount: formData.value.tenant_ids.length,
       monthlyRent: formData.value.monthly_rent,
       charges: formData.value.charges,
       deposit: formData.value.deposit,
@@ -222,7 +221,7 @@ const leaseData = computed<LeaseData | null>(() => {
           itemCondition: item.item_condition,
         }))
       })),
-      dpe: formData.value.dpe || undefined,
+      dpe: formData.value.dpe_class ? `Classe ${formData.value.dpe_class}` : undefined,
       erp: formData.value.erp || undefined,
       homeInsurance: formData.value.home_insurance || undefined,
       legalNoticeProvided: formData.value.legal_notice_provided,
@@ -305,10 +304,20 @@ async function loadSelectedFurnitureSet() {
 
 async function generateLease() {
   // Validate required fields
-  if (!formData.value.tenant_id || !formData.value.start_date || 
+  if (formData.value.tenant_ids.length === 0 || !formData.value.start_date ||
       formData.value.monthly_rent <= 0 || formData.value.charges < 0 || 
       formData.value.deposit < 0) {
     error.value = 'Veuillez remplir tous les champs obligatoires'
+    return
+  }
+
+  if (formData.value.is_colocation && formData.value.tenant_ids.length < 2) {
+    error.value = 'Une colocation requiert au moins 2 locataires'
+    return
+  }
+
+  if (!formData.value.is_colocation && formData.value.tenant_ids.length > 1) {
+    error.value = "Plusieurs locataires nécessitent d'activer la colocation"
     return
   }
 
@@ -325,12 +334,11 @@ async function generateLease() {
 
     const payload = {
       property_id: propertyId.value,
-      tenant_id: formData.value.tenant_id,
+      tenant_ids: formData.value.tenant_ids,
       start_date: formData.value.start_date || '',
       duration_months: formData.value.duration_months,
       lease_kind: formData.value.lease_kind,
       is_colocation: formData.value.is_colocation,
-      tenant_count: formData.value.tenant_count,
       destination: formData.value.destination,
       monthly_rent: formData.value.monthly_rent,
       charges: formData.value.charges,
@@ -364,7 +372,7 @@ async function generateLease() {
       shared_areas_text: formData.value.shared_areas_text || undefined,
       furniture_set_ids: formData.value.furniture_set_ids,
       furniture_inventory: formData.value.furniture_inventory || undefined,
-      dpe: formData.value.dpe || undefined,
+      dpe: formData.value.dpe_class ? `Classe ${formData.value.dpe_class}` : undefined,
       erp: formData.value.erp || undefined,
       home_insurance: formData.value.home_insurance || undefined,
       legal_notice_provided: formData.value.legal_notice_provided,
@@ -450,14 +458,25 @@ function back() {
       </div>
 
       <form @submit.prevent="generateLease" class="lease-form">
+        <h3 class="form-section-title">Parties et dates</h3>
         <div class="form-group">
-          <label for="tenant">Locataire *</label>
-          <select id="tenant" v-model="formData.tenant_id" required>
-            <option value="">-- Sélectionner un locataire --</option>
-            <option v-for="tenant in allTenants" :key="tenant.id" :value="tenant.id">
-              {{ tenant.name }}
-            </option>
-          </select>
+          <label>{{ formData.is_colocation ? 'Colocataires *' : 'Locataire *' }}</label>
+          <div class="tenant-multi-list">
+            <label v-for="tenant in allTenants" :key="tenant.id" class="tenant-option">
+              <input
+                type="checkbox"
+                :value="tenant.id"
+                v-model="formData.tenant_ids"
+              />
+              <span>{{ tenant.name }}</span>
+              <span v-if="formData.tenant_ids[0] === tenant.id" class="primary-badge">principal</span>
+            </label>
+          </div>
+          <small class="hint-text">
+            {{ formData.is_colocation
+              ? 'Sélectionnez au moins deux colocataires. Le premier sélectionné est le locataire principal.'
+              : 'Sélectionnez le locataire.' }}
+          </small>
           <router-link to="/tenants" class="link">+ Ajouter un nouveau locataire</router-link>
         </div>
 
@@ -481,6 +500,7 @@ function back() {
           </div>
         </div>
 
+        <h3 class="form-section-title">Logement</h3>
         <div class="form-row">
           <div class="form-group">
             <label for="surface">Surface habitable (m2) *</label>
@@ -492,6 +512,7 @@ function back() {
           </div>
         </div>
 
+        <h3 class="form-section-title">Conditions financières</h3>
         <div class="form-row">
           <div class="form-group">
             <label for="rent">Loyer mensuel (€) *</label>
@@ -517,9 +538,39 @@ function back() {
           <input type="date" id="inventoryDate" v-model="formData.inventory_date" />
         </div>
 
+        <div class="form-group checkbox">
+          <label>
+            <input type="checkbox" v-model="formData.rent_revision" />
+            Clause de révision du loyer
+          </label>
+        </div>
+
+        <h3 class="form-section-title">Colocation</h3>
         <div class="form-row">
+          <div class="form-group checkbox">
+            <label>
+              <input type="checkbox" v-model="formData.is_colocation" />
+              Colocation
+            </label>
+          </div>
           <div class="form-group">
-            <label for="privateRoom">Chambre privative (colocation)</label>
+            <label>Nombre de {{ formData.is_colocation ? 'colocataires' : 'locataires' }}</label>
+            <p class="derived-count">
+              {{ formData.tenant_ids.length }}
+              <span v-if="formData.is_colocation && formData.tenant_ids.length < 2" class="count-warning">
+                (au moins 2 requis)
+              </span>
+              <span v-else-if="!formData.is_colocation && formData.tenant_ids.length > 1" class="count-warning">
+                (un seul locataire hors colocation)
+              </span>
+            </p>
+            <small class="hint-text">Défini par les locataires sélectionnés ci-dessus.</small>
+          </div>
+        </div>
+
+        <div class="form-row" v-if="formData.is_colocation">
+          <div class="form-group">
+            <label for="privateRoom">Chambre privative *</label>
             <input
               type="text"
               id="privateRoom"
@@ -539,30 +590,7 @@ function back() {
           </div>
         </div>
 
-        <div class="form-group checkbox">
-          <label>
-            <input type="checkbox" v-model="formData.rent_revision" />
-            Clause de révision du loyer
-          </label>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group checkbox">
-            <label>
-              <input type="checkbox" v-model="formData.is_colocation" />
-              Colocation
-            </label>
-          </div>
-          <div class="form-group" v-if="formData.is_colocation">
-            <label for="tenantCount">Nombre de colocataires *</label>
-            <input type="number" id="tenantCount" v-model="formData.tenant_count" min="2" />
-          </div>
-          <div class="form-group" v-else>
-            <label for="tenantCountSingle">Nombre de locataires</label>
-            <input type="number" id="tenantCountSingle" v-model="formData.tenant_count" min="1" max="1" />
-          </div>
-        </div>
-
+        <h3 class="form-section-title">Diagnostic énergétique</h3>
         <div class="form-row">
           <div class="form-group">
             <label for="dpeClass">Classe DPE *</label>
@@ -584,6 +612,7 @@ function back() {
           </div>
         </div>
 
+        <h3 class="form-section-title">Zone encadrée des loyers</h3>
         <div class="form-row">
           <div class="form-group checkbox">
             <label>
@@ -615,6 +644,7 @@ function back() {
           </div>
         </div>
 
+        <h3 class="form-section-title">Mandataire professionnel</h3>
         <div class="form-row">
           <div class="form-group checkbox">
             <label>
@@ -635,6 +665,7 @@ function back() {
           </div>
         </div>
 
+        <h3 class="form-section-title">Clauses particulières</h3>
         <div class="form-group">
           <label for="customClauses">Clauses particulieres (controle legal applique)</label>
           <textarea id="customClauses" v-model="formData.custom_clauses" rows="3" />
@@ -665,22 +696,12 @@ function back() {
         </div>
 
         <div v-if="property?.furnished" class="form-group">
-          <label for="furnitureInventory">Inventaire libre complémentaire</label>
+          <label for="furnitureInventory">Notes complémentaires sur le mobilier</label>
           <textarea
             id="furnitureInventory"
             v-model="formData.furniture_inventory"
             rows="3"
-            placeholder="Ex: lit double, table, 4 chaises, réfrigérateur, plaques, vaisselle..."
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="dpe">DPE (référence/classe/date)</label>
-          <input
-            type="text"
-            id="dpe"
-            v-model="formData.dpe"
-            placeholder="Ex: DPE classe C - réalisé le 15/04/2026"
+            placeholder="Précisions libres en complément des sets de mobilier structurés ci-dessus."
           />
         </div>
 
@@ -754,7 +775,7 @@ function back() {
           </ul>
         </div>
 
-        <button type="submit" class="btn-primary" :disabled="!formData.tenant_id || loading">
+        <button type="submit" class="btn-primary" :disabled="formData.tenant_ids.length === 0 || loading">
           {{ isEditMode ? '💾 Mettre à jour le bail et régénérer le PDF' : '📄 Créer le bail et générer le PDF' }}
         </button>
       </form>
@@ -763,7 +784,6 @@ function back() {
 
   <LeasePreview 
     v-else-if="leaseData" 
-    :data="leaseData"
     :property-id="propertyId"
     :lease-id="generatedLeaseId ?? undefined"
     :compliance-status="generatedComplianceStatus ?? undefined"
@@ -830,6 +850,51 @@ function back() {
 .lease-form {
   display: grid;
   gap: 1.5rem;
+}
+
+.form-section-title {
+  margin: 0.5rem 0 0;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.tenant-multi-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+}
+
+.tenant-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.primary-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #15803d;
+  background: #dcfce7;
+  border-radius: 999px;
+  padding: 0.05rem 0.5rem;
+}
+
+.derived-count {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.count-warning {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #b45309;
 }
 
 .form-row {

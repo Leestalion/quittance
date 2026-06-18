@@ -97,12 +97,22 @@ fn validate_lease_payload(data: &CreateLease, property_is_furnished: bool) -> Re
     }
 
     let is_colocation = data.is_colocation.unwrap_or(false);
-    let tenant_count = data.tenant_count.unwrap_or(1);
+    let tenant_count = data.tenant_ids.len();
+    if data.tenant_ids.is_empty() {
+        return Err(AppError::Validation("At least one tenant is required".to_string()));
+    }
+    {
+        // Reject duplicate tenants in the party set.
+        let mut seen = std::collections::HashSet::new();
+        if !data.tenant_ids.iter().all(|id| seen.insert(*id)) {
+            return Err(AppError::Validation("Duplicate tenants are not allowed".to_string()));
+        }
+    }
     if is_colocation && tenant_count < 2 {
         return Err(AppError::Validation("Colocation requires at least 2 tenants".to_string()));
     }
     if !is_colocation && tenant_count > 1 {
-        return Err(AppError::Validation("Tenant count greater than 1 requires colocation mode".to_string()));
+        return Err(AppError::Validation("More than one tenant requires colocation mode".to_string()));
     }
 
     let dpe_class = data.dpe_class.as_deref().unwrap_or("");
@@ -190,6 +200,7 @@ pub fn router() -> Router<Database> {
         .route("/", get(list_leases).post(create_lease))
     .route("/:id", get(get_lease).put(update_lease).delete(delete_lease))
     .route("/:id/pdf", get(generate_lease_pdf))
+    .route("/:id/preview", get(preview_lease_html))
     .route("/:id/snapshot", get(get_lease_snapshot))
 }
 
@@ -213,6 +224,26 @@ async fn ensure_property_access(db: &Database, property_id: Uuid, user_id: Uuid)
         Ok(())
     } else {
         Err(AppError::NotFound(format!("Property with id {} not found", property_id)))
+    }
+}
+
+/// Ensure every tenant in the set belongs to the requesting user.
+async fn ensure_tenants_access(db: &Database, tenant_ids: &[Uuid], user_id: Uuid) -> Result<(), AppError> {
+    if tenant_ids.is_empty() {
+        return Ok(());
+    }
+    let accessible = sqlx::query_scalar::<_, i64>(
+        "SELECT COUNT(*) FROM tenants WHERE user_id = $1 AND id = ANY($2)",
+    )
+    .bind(user_id)
+    .bind(tenant_ids)
+    .fetch_one(&db.pool)
+    .await?;
+
+    if accessible == tenant_ids.len() as i64 {
+        Ok(())
+    } else {
+        Err(AppError::NotFound("One or more tenants not found".to_string()))
     }
 }
 
@@ -260,6 +291,11 @@ async fn fetch_lease_by_id(db: &Database, id: Uuid) -> Result<Lease, AppError> {
             l.id,
             l.property_id,
             l.tenant_id,
+            COALESCE(
+                (SELECT array_agg(lt.tenant_id ORDER BY lt.is_primary DESC, lt.position, lt.tenant_id)
+                 FROM lease_tenants lt WHERE lt.lease_id = l.id),
+                ARRAY[l.tenant_id]
+            ) AS tenant_ids,
             l.start_date,
             l.end_date,
             l.duration_months,
@@ -362,6 +398,38 @@ fn legal_templates_dir() -> PathBuf {
         .unwrap_or_else(|_| PathBuf::from("src/legal_templates"))
 }
 
+/// Resolve the wkhtmltopdf binary path.
+///
+/// Resolution order:
+/// 1. `WKHTMLTOPDF_PATH` env var (explicit override, used in Docker/dev).
+/// 2. Well-known default install locations (so a standard install works even
+///    when the binary is not on `PATH` and no env var is set).
+/// 3. Fall back to the bare name `wkhtmltopdf` (relies on `PATH`).
+fn resolve_wkhtmltopdf_path() -> String {
+    if let Ok(path) = std::env::var("WKHTMLTOPDF_PATH") {
+        if !path.trim().is_empty() {
+            return path;
+        }
+    }
+
+    const DEFAULT_LOCATIONS: &[&str] = &[
+        // Windows default install location
+        r"C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe",
+        r"C:\Program Files (x86)\wkhtmltopdf\bin\wkhtmltopdf.exe",
+        // Common Unix locations
+        "/usr/bin/wkhtmltopdf",
+        "/usr/local/bin/wkhtmltopdf",
+    ];
+
+    for candidate in DEFAULT_LOCATIONS {
+        if std::path::Path::new(candidate).exists() {
+            return candidate.to_string();
+        }
+    }
+
+    "wkhtmltopdf".to_string()
+}
+
 /// Build a canonical snapshot for a lease by loading its related entities.
 /// The landlord is the property owner; falls back to the requesting user for
 /// organization-owned properties without a direct owner.
@@ -371,17 +439,77 @@ async fn build_snapshot_for_lease(
     requesting_user_id: Uuid,
 ) -> Result<CanonicalSnapshot, AppError> {
     let property = fetch_property_by_id(db, lease.property_id).await?;
-    let tenant = fetch_tenant_by_id(db, lease.tenant_id).await?;
+
+    // Load all named tenants in order (primary first), as recorded on the lease.
+    let mut tenants = Vec::with_capacity(lease.tenant_ids.len());
+    for tenant_id in &lease.tenant_ids {
+        tenants.push(fetch_tenant_by_id(db, *tenant_id).await?);
+    }
+    if tenants.is_empty() {
+        // Fallback for safety: use the primary tenant.
+        tenants.push(fetch_tenant_by_id(db, lease.tenant_id).await?);
+    }
+
     let landlord_id = property.user_id.unwrap_or(requesting_user_id);
     let landlord = fetch_user_by_id(db, landlord_id).await?;
 
     Ok(CanonicalSnapshot::from_entities(
         lease,
         &property,
-        &tenant,
+        &tenants,
         &landlord,
         CURRENT_LEGAL_TEMPLATE_VERSION.to_string(),
     ))
+}
+
+/// Build the canonical snapshot for a lease and persist it to the
+/// `canonical_snapshot` column. Called on create/update so all renderings
+/// (preview, print, PDF) read identical, stable, versioned content.
+async fn persist_snapshot_for_lease(
+    db: &Database,
+    lease_id: Uuid,
+    requesting_user_id: Uuid,
+) -> Result<CanonicalSnapshot, AppError> {
+    let lease = fetch_lease_by_id(db, lease_id).await?;
+    let snapshot = build_snapshot_for_lease(db, &lease, requesting_user_id).await?;
+    let snapshot_json = serde_json::to_value(&snapshot).map_err(|e| {
+        tracing::error!("snapshot serialization failed for lease {}: {}", lease_id, e);
+        AppError::Internal
+    })?;
+
+    sqlx::query("UPDATE leases SET canonical_snapshot = $1 WHERE id = $2")
+        .bind(snapshot_json)
+        .bind(lease_id)
+        .execute(&db.pool)
+        .await?;
+
+    Ok(snapshot)
+}
+
+/// Load the persisted canonical snapshot for a lease. If none is stored
+/// (legacy rows created before snapshot persistence), rebuild it and persist
+/// it on demand so subsequent reads are stable.
+async fn load_or_build_snapshot(
+    db: &Database,
+    lease_id: Uuid,
+    requesting_user_id: Uuid,
+) -> Result<CanonicalSnapshot, AppError> {
+    let stored = sqlx::query_scalar::<_, Option<serde_json::Value>>(
+        "SELECT canonical_snapshot FROM leases WHERE id = $1",
+    )
+    .bind(lease_id)
+    .fetch_optional(&db.pool)
+    .await?
+    .flatten();
+
+    if let Some(value) = stored {
+        if let Ok(snapshot) = serde_json::from_value::<CanonicalSnapshot>(value) {
+            return Ok(snapshot);
+        }
+        tracing::warn!("Stored snapshot for lease {} is invalid; rebuilding", lease_id);
+    }
+
+    persist_snapshot_for_lease(db, lease_id, requesting_user_id).await
 }
 
 /// GET /api/leases/{id}/pdf
@@ -395,11 +523,9 @@ async fn generate_lease_pdf(
     let user_id = extract_user_id_from_headers(&headers)?;
     ensure_lease_access(&db, id, user_id).await?;
 
-    let lease = fetch_lease_by_id(&db, id).await?;
-    let snapshot = build_snapshot_for_lease(&db, &lease, user_id).await?;
+    let snapshot = load_or_build_snapshot(&db, id, user_id).await?;
 
-    let wkhtmltopdf_path = std::env::var("WKHTMLTOPDF_PATH")
-        .unwrap_or_else(|_| "wkhtmltopdf".to_string());
+    let wkhtmltopdf_path = resolve_wkhtmltopdf_path();
     let timeout_secs = std::env::var("PDF_GENERATION_TIMEOUT_SECS")
         .ok()
         .and_then(|v| v.parse::<u64>().ok())
@@ -431,6 +557,41 @@ async fn generate_lease_pdf(
         })
 }
 
+/// GET /api/leases/{id}/preview
+/// Return the canonical lease HTML, identical to the source used for the PDF.
+/// This is the single source of truth for the on-screen preview and print.
+async fn preview_lease_html(
+    State(db): State<Database>,
+    headers: HeaderMap,
+    Path(id): Path<Uuid>,
+) -> Result<Response, AppError> {
+    let user_id = extract_user_id_from_headers(&headers)?;
+    ensure_lease_access(&db, id, user_id).await?;
+
+    let snapshot = load_or_build_snapshot(&db, id, user_id).await?;
+
+    // wkhtmltopdf is not needed to render HTML; pass a placeholder path.
+    let renderer = PdfRenderer::new(&legal_templates_dir(), "wkhtmltopdf".to_string(), 30)
+        .map_err(|e| {
+            tracing::error!("Failed to initialize renderer: {}", e);
+            AppError::Internal
+        })?;
+
+    let html = renderer.render_html(&snapshot).map_err(|e| {
+        tracing::error!("HTML rendering failed for lease {}: {}", id, e);
+        AppError::Internal
+    })?;
+
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
+        .body(Body::from(html))
+        .map_err(|e| {
+            tracing::error!("Failed to build preview response: {}", e);
+            AppError::Internal
+        })
+}
+
 /// GET /api/leases/{id}/snapshot
 /// Return the canonical lease snapshot JSON (used for preview/debugging).
 async fn get_lease_snapshot(
@@ -441,8 +602,7 @@ async fn get_lease_snapshot(
     let user_id = extract_user_id_from_headers(&headers)?;
     ensure_lease_access(&db, id, user_id).await?;
 
-    let lease = fetch_lease_by_id(&db, id).await?;
-    let snapshot = build_snapshot_for_lease(&db, &lease, user_id).await?;
+    let snapshot = load_or_build_snapshot(&db, id, user_id).await?;
 
     Ok(Json(snapshot))
 }
@@ -516,6 +676,7 @@ async fn create_lease(
 ) -> Result<(StatusCode, Json<Lease>), AppError> {
     let user_id = extract_user_id_from_headers(&headers)?;
     ensure_property_access(&db, data.property_id, user_id).await?;
+    ensure_tenants_access(&db, &data.tenant_ids, user_id).await?;
     let property_is_furnished = get_property_furnished(&db, data.property_id).await?;
     validate_lease_payload(&data, property_is_furnished)?;
 
@@ -541,7 +702,8 @@ async fn create_lease(
     let primary_furniture_set_id = data.furniture_set_ids.first().copied();
     let lease_kind = data.lease_kind.as_deref().unwrap_or("standard");
     let is_colocation = data.is_colocation.unwrap_or(false);
-    let tenant_count = data.tenant_count.unwrap_or(1);
+    let primary_tenant_id = *data.tenant_ids.first().expect("validated: at least one tenant");
+    let tenant_count = data.tenant_ids.len() as i32;
     let destination = data.destination.as_deref().unwrap_or("habitation");
     let is_dom_tom = data.is_dom_tom.unwrap_or(false);
     let rent_payment_frequency = data.rent_payment_frequency.as_deref().unwrap_or("mensuel");
@@ -584,7 +746,7 @@ async fn create_lease(
         "#
     )
     .bind(data.property_id)
-    .bind(data.tenant_id)
+    .bind(primary_tenant_id)
     .bind(data.start_date)
     .bind(end_date)
     .bind(data.duration_months)
@@ -646,7 +808,21 @@ async fn create_lease(
         .await?;
     }
 
+    for (position, tenant_id) in data.tenant_ids.iter().enumerate() {
+        sqlx::query(
+            "INSERT INTO lease_tenants (lease_id, tenant_id, is_primary, position) VALUES ($1, $2, $3, $4)"
+        )
+        .bind(lease_id)
+        .bind(tenant_id)
+        .bind(position == 0)
+        .bind(position as i32)
+        .execute(&mut *tx)
+        .await?;
+    }
+
     tx.commit().await?;
+
+    persist_snapshot_for_lease(&db, lease_id, user_id).await?;
 
     let lease = fetch_lease_by_id(&db, lease_id).await?;
 
@@ -673,6 +849,7 @@ async fn update_lease(
     let user_id = extract_user_id_from_headers(&headers)?;
     ensure_lease_access(&db, id, user_id).await?;
     ensure_property_access(&db, data.property_id, user_id).await?;
+    ensure_tenants_access(&db, &data.tenant_ids, user_id).await?;
     let property_is_furnished = get_property_furnished(&db, data.property_id).await?;
     validate_lease_payload(&data, property_is_furnished)?;
 
@@ -697,7 +874,8 @@ async fn update_lease(
     let primary_furniture_set_id = data.furniture_set_ids.first().copied();
     let lease_kind = data.lease_kind.as_deref().unwrap_or("standard");
     let is_colocation = data.is_colocation.unwrap_or(false);
-    let tenant_count = data.tenant_count.unwrap_or(1);
+    let primary_tenant_id = *data.tenant_ids.first().expect("validated: at least one tenant");
+    let tenant_count = data.tenant_ids.len() as i32;
     let destination = data.destination.as_deref().unwrap_or("habitation");
     let is_dom_tom = data.is_dom_tom.unwrap_or(false);
     let rent_payment_frequency = data.rent_payment_frequency.as_deref().unwrap_or("mensuel");
@@ -773,7 +951,7 @@ async fn update_lease(
     )
     .bind(id)
     .bind(data.property_id)
-    .bind(data.tenant_id)
+    .bind(primary_tenant_id)
     .bind(data.start_date)
     .bind(end_date)
     .bind(data.duration_months)
@@ -841,7 +1019,26 @@ async fn update_lease(
         .await?;
     }
 
+    sqlx::query("DELETE FROM lease_tenants WHERE lease_id = $1")
+        .bind(updated_id)
+        .execute(&mut *tx)
+        .await?;
+
+    for (position, tenant_id) in data.tenant_ids.iter().enumerate() {
+        sqlx::query(
+            "INSERT INTO lease_tenants (lease_id, tenant_id, is_primary, position) VALUES ($1, $2, $3, $4)"
+        )
+        .bind(updated_id)
+        .bind(tenant_id)
+        .bind(position == 0)
+        .bind(position as i32)
+        .execute(&mut *tx)
+        .await?;
+    }
+
     tx.commit().await?;
+
+    persist_snapshot_for_lease(&db, updated_id, user_id).await?;
 
     Ok(Json(fetch_lease_by_id(&db, updated_id).await?))
 }
@@ -872,7 +1069,7 @@ mod tests {
     fn base_payload() -> CreateLease {
         CreateLease {
             property_id: Uuid::new_v4(),
-            tenant_id: Uuid::new_v4(),
+            tenant_ids: vec![Uuid::new_v4()],
             start_date: NaiveDate::from_ymd_opt(2026, 6, 1).expect("valid date"),
             duration_months: 12,
             monthly_rent: BigDecimal::from(1000),
@@ -882,7 +1079,6 @@ mod tests {
             annual_charges_regularization: false,
             lease_kind: Some("standard".to_string()),
             is_colocation: Some(false),
-            tenant_count: Some(1),
             destination: Some("habitation".to_string()),
             habitable_surface: Some(BigDecimal::from(45)),
             main_room_count: Some(2),
@@ -996,7 +1192,35 @@ mod tests {
     fn rejects_colocation_without_multiple_tenants() {
         let mut payload = base_payload();
         payload.is_colocation = Some(true);
-        payload.tenant_count = Some(1);
+        payload.tenant_ids = vec![Uuid::new_v4()]; // only one tenant
+        let result = validate_lease_payload(&payload, true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn accepts_colocation_with_multiple_tenants() {
+        let mut payload = base_payload();
+        payload.is_colocation = Some(true);
+        payload.tenant_ids = vec![Uuid::new_v4(), Uuid::new_v4()];
+        let result = validate_lease_payload(&payload, true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn rejects_multiple_tenants_without_colocation() {
+        let mut payload = base_payload();
+        payload.is_colocation = Some(false);
+        payload.tenant_ids = vec![Uuid::new_v4(), Uuid::new_v4()];
+        let result = validate_lease_payload(&payload, true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn rejects_duplicate_tenants() {
+        let mut payload = base_payload();
+        let dup = Uuid::new_v4();
+        payload.is_colocation = Some(true);
+        payload.tenant_ids = vec![dup, dup];
         let result = validate_lease_payload(&payload, true);
         assert!(result.is_err());
     }

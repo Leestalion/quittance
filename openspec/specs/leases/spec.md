@@ -69,11 +69,11 @@ The system MUST accept, validate, persist, and return all lease legal and annex-
 - **THEN** the system stores annex statuses and enforces required annex presence before allowing compliant document generation
 
 ### Requirement: Lease generation MUST enforce legal conditional rules
-The system MUST enforce conditional legal rules for colocations, rent-control zones, diagnostics, and term logic based on lease context.
+The system MUST enforce conditional legal rules for colocations, rent-control zones, diagnostics, and term logic based on lease context. Colocation rules MUST operate on the named set of tenants associated with the lease.
 
 #### Scenario: Apply colocation-only sections and obligations
-- **WHEN** a lease includes multiple tenants
-- **THEN** the system requires and generates colocation-specific provisions (including solidarity clause behavior and insurance fields when applicable)
+- **WHEN** a lease designates multiple named tenants (colocation)
+- **THEN** the system requires and generates colocation-specific provisions (including the solidarity clause referencing the named colocataires and insurance fields when applicable)
 
 #### Scenario: Apply rent-control-zone obligations
 - **WHEN** the property is in a rent-control area
@@ -86,6 +86,51 @@ The system MUST enforce conditional legal rules for colocations, rent-control zo
 #### Scenario: Apply DPE minimum threshold by date and territory
 - **WHEN** the lease effective date and territory imply a minimum DPE threshold
 - **THEN** the system blocks generation for non-compliant energy class values and returns an explicit compliance error
+
+### Requirement: A lease designates a named set of tenants
+The system MUST associate each lease with one or more named tenants and MUST treat that set as the legal parties of the contract. A single shared colocation lease MUST be able to designate every colocataire.
+
+#### Scenario: Create a single-tenant lease
+- **WHEN** a lease is created with exactly one tenant and colocation is not enabled
+- **THEN** the system persists the lease with that single tenant as the primary party
+
+#### Scenario: Create a colocation lease with multiple named tenants
+- **WHEN** a lease is created with colocation enabled and two or more tenants are selected
+- **THEN** the system persists the lease associated with all selected tenants, preserving their order, with one designated as primary
+
+#### Scenario: Reject a colocation lease without enough named tenants
+- **WHEN** a lease is created or updated with colocation enabled and fewer than two tenants
+- **THEN** the system rejects the request with a validation error
+
+#### Scenario: Reject multiple tenants without colocation enabled
+- **WHEN** a lease is created or updated with two or more tenants but colocation is not enabled
+- **THEN** the system rejects the request with a validation error
+
+#### Scenario: Reject tenants not belonging to the landlord scope
+- **WHEN** a lease references a tenant the requesting user cannot access
+- **THEN** the system rejects the request
+
+### Requirement: Generated contract names every colocataire
+The system MUST render all named tenants of a lease as designated parties in the generated contract, and MUST reflect the actual party set in the solidarity clause for colocation leases.
+
+#### Scenario: Section I lists all colocataires
+- **WHEN** a colocation lease document is generated
+- **THEN** Section I (Désignation des parties) lists each colocataire by name as a party to the contract
+
+#### Scenario: Solidarity clause applies to the named colocataires
+- **WHEN** a colocation lease document is generated
+- **THEN** the solidarity clause (Section VII) is included and refers to the colocataires designated in the contract
+
+#### Scenario: Single-tenant lease names the sole tenant
+- **WHEN** a non-colocation lease document is generated
+- **THEN** Section I names the single tenant and the solidarity clause is omitted
+
+### Requirement: Lease party data migrates without loss
+The system MUST preserve existing single-tenant leases when introducing the named-tenant relationship.
+
+#### Scenario: Existing single-tenant lease is migrated to a one-entry party set
+- **WHEN** the named-tenant relationship is introduced
+- **THEN** each existing lease's current tenant becomes its single primary party with no change to the rendered contract for that lease
 
 ### Requirement: Lease clauses and prohibited clauses are legally controlled
 The system MUST auto-generate mandatory legal clauses and MUST block prohibited clauses in editable lease terms.
@@ -114,20 +159,88 @@ The system MUST compute a lease compliance status and MUST prevent final real-li
 - **THEN** the system blocks final issuance and reports actionable remediation items to the user
 
 ### Requirement: PDF generation is server-side and persists canonical legal snapshot
-The system MUST generate lease PDFs server-side from a canonical lease contract snapshot, ensuring exact correspondence between persisted data and rendered output, enabling legal template versioning, and preventing frontend drift.
+The system MUST generate lease PDFs server-side from a canonical lease contract snapshot, ensuring exact correspondence between persisted data and rendered output, enabling legal template versioning, and preventing frontend drift. The canonical snapshot MUST be persisted when the lease is created or updated (not merely built on demand), so that all downstream renderings are stable and auditable.
 
-#### Scenario: Generate canonical lease contract snapshot on persist
-- **WHEN** a lease is created or updated
-- **THEN** the system constructs and stores a canonical snapshot JSON containing: all nine legal sections (I-XI) with resolved fields, auto-generated mandatory clauses, conditional sections (colocation, student non-renewal, rent-control, etc.), user custom clauses, and metadata (generation date, template version, compliance status)
+#### Scenario: Persist canonical snapshot on lease create
+- **WHEN** a lease is created
+- **THEN** the system builds the canonical snapshot and stores it on the lease record, including the legal template version in effect
 
-#### Scenario: Render server-side PDF from canonical snapshot
+#### Scenario: Persist canonical snapshot on lease update
+- **WHEN** a lease is updated
+- **THEN** the system rebuilds the canonical snapshot and replaces the stored snapshot, preserving the legal template version semantics
+
+#### Scenario: Render server-side PDF from persisted snapshot
 - **WHEN** a user requests a lease PDF
-- **THEN** the system fetches the canonical snapshot, assembles locked legal sections and validated custom clauses into an HTML/template, renders via server-side PDF engine, and returns the binary or download link
-- **NOTE**: Frontend never generates legal text or PDF dynamically; it only consumes the server-generated artifact
+- **THEN** the system renders the PDF from the persisted canonical snapshot using the server-side renderer and returns the binary or download link
+- **NOTE**: The frontend never generates legal text or PDF dynamically; it only consumes the server-generated artifact
 
 #### Scenario: Preserve legal template version in snapshot
 - **WHEN** a lease snapshot is persisted
-- **THEN** the snapshot includes the legal template version (e.g., "2026-06-18") so that if legislation changes, regenerated PDFs for old leases preserve their original legal text
+- **THEN** the snapshot records the legal template version (e.g., "2026-06-18") so regenerated documents for existing leases preserve their original legal text
+
+### Requirement: Lease document rendering uses a single server-side source of truth
+The system MUST render the lease contract from one canonical server-side source so that the on-screen preview, the printed document, and the downloaded PDF are identical in content and structure. The frontend MUST NOT compose, derive, or template any legal contract text.
+
+#### Scenario: Provide canonical HTML preview from the server
+- **WHEN** a client requests the preview of a saved lease
+- **THEN** the system returns the canonical lease HTML rendered from the persisted snapshot, identical in content to the HTML used to produce the PDF
+
+#### Scenario: Preview matches PDF
+- **WHEN** the same lease is previewed on screen and exported as PDF
+- **THEN** both reflect the same canonical snapshot and contain the same legal sections, clauses, and values
+
+#### Scenario: Print uses the canonical rendering
+- **WHEN** a user prints a lease from the application
+- **THEN** the printed output is the server-rendered canonical document, not a separately composed client-side layout
+
+#### Scenario: Conditional legal text reflects lease kind
+- **WHEN** the lease kind is student
+- **THEN** the rendered duration/renewal section states there is no automatic renewal (no tacite reconduction), and a standard lease renders the automatic-renewal wording
+
+#### Scenario: Rendering requires a saved lease
+- **WHEN** a user attempts to preview, print, or download a lease that has not been saved
+- **THEN** the system indicates the lease must be saved first and does not attempt client-side legal text generation
+
+### Requirement: Lease form provides guided, structured input with conditional visibility
+The system MUST present the lease creation/edit form as discrete, clearly labelled sections and MUST reveal context-dependent fields only when they apply, so the user's intent and obligations are explicit.
+
+#### Scenario: Colocation fields are hidden unless colocation is enabled
+- **WHEN** the "Colocation" option is not selected
+- **THEN** colocation-only fields (private room label, shared common areas, colocataire count) are not displayed
+- **AND WHEN** "Colocation" is selected, those fields are displayed and the relevant ones are marked required
+
+#### Scenario: Rent-control fields appear only in controlled zones
+- **WHEN** the lease is not marked as being in a rent-control zone
+- **THEN** reference-rent and rent-complement fields are hidden
+- **AND WHEN** rent control is enabled, those fields are displayed and required
+
+#### Scenario: Professional mandate fields appear only when applicable
+- **WHEN** professional mandate is not enabled
+- **THEN** agency fee fields are hidden
+- **AND WHEN** enabled, agency fee fields are displayed and required
+
+#### Scenario: Required and optional fields are explicit and consistent with backend rules
+- **WHEN** a user views any form section
+- **THEN** required fields are clearly indicated and the indicated requirements match the backend validation rules for the current lease context
+
+#### Scenario: Validation feedback explains why a field is blocked
+- **WHEN** a user enters a value that violates a legal rule (e.g., deposit exceeding the legal cap, student duration not equal to nine months, prohibited custom clause)
+- **THEN** the form surfaces an actionable message explaining the rule before submission
+
+### Requirement: Lease form fields are deduplicated and structured
+The system MUST collect each piece of lease information once through a single structured input, eliminating duplicated or free-text-versus-structured field pairs that capture the same data.
+
+#### Scenario: Energy performance is captured once
+- **WHEN** a user provides energy performance information
+- **THEN** the form collects the DPE through a single structured input (class plus required metadata) and does not present a second free-text DPE field for the same data
+
+#### Scenario: Furniture inventory is captured through structured sets
+- **WHEN** the property is furnished
+- **THEN** the form collects furniture via structured furniture sets, and any complementary free-text inventory is clearly distinct in purpose rather than duplicating the structured data
+
+#### Scenario: Annex statuses map to single inputs
+- **WHEN** a user records annex provision (legal notice, DPE, ERP, entry inventory, furniture inventory, home insurance)
+- **THEN** each annex is captured by a single control without a duplicate field representing the same annex
 
 ### Requirement: Lease legal sections are locked (non-editable) and custom clauses are modifiable under validation
 The system MUST render sections I-VIII and XI (mandatory legal sections) as non-editable, auto-generated blocks, while allowing section X (Autres conditions particulières) to be freely edited under legal prohibition filters.

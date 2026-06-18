@@ -16,6 +16,34 @@ Rust backend API server for the Quittance rental management application.
 - Rust 1.75+ ([Install Rust](https://rustup.rs/))
 - PostgreSQL 14+
 - SQLx CLI: `cargo install sqlx-cli --no-default-features --features postgres`
+- `wkhtmltopdf` (for server-side lease PDF generation)
+
+#### Installing wkhtmltopdf
+
+Lease PDFs are rendered server-side from the canonical lease HTML using `wkhtmltopdf`.
+
+- **Windows:** `winget install wkhtmltopdf.wkhtmltox` (or `choco install wkhtmltopdf`).
+  The binary installs to `C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe`.
+- **Debian/Ubuntu (and the Docker image):** `apt-get install -y wkhtmltopdf`.
+- **macOS:** `brew install wkhtmltopdf`.
+
+If the binary is not on your `PATH`, point the server at it:
+
+```bash
+# Windows (PowerShell)
+$env:WKHTMLTOPDF_PATH = "C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe"
+```
+
+Related environment variables:
+
+- `WKHTMLTOPDF_PATH` — path to the `wkhtmltopdf` binary (default: `wkhtmltopdf` on `PATH`).
+- `LEGAL_TEMPLATES_DIR` — path to the legal HTML templates (default: `src/legal_templates`).
+- `PDF_GENERATION_TIMEOUT_SECS` — PDF render timeout (default: `30`).
+
+**Browser-print fallback:** the on-screen lease preview is the same canonical HTML
+served by `GET /leases/{id}/preview`. In environments without `wkhtmltopdf`, use the
+preview's "Imprimer" action and choose "Save as PDF" in the browser print dialog to
+obtain a PDF without the native binary.
 
 ### Environment Setup
 
