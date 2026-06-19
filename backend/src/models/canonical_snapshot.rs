@@ -24,6 +24,7 @@ pub struct CanonicalSnapshot {
     pub lease_terms: LeaseTermsSection,
     pub financial_terms: FinancialTermsSection,
     pub professional_mandate: ProfessionalMandateSection,
+    pub works: WorksSection,
     pub diagnostics: DiagnosticsSection,
     pub previous_tenancy: PreviousTenancySection,
     pub lease_sections: LeaseSections,
@@ -103,6 +104,17 @@ pub struct PropertySection {
     pub gas_installation_over_15y: bool,
     #[serde(default)]
     pub in_risk_zone: bool,
+    // Layer 2: textual property descriptions (Décret 2015-587 Section II)
+    #[serde(default)]
+    pub autres_parties: Option<String>,
+    #[serde(default)]
+    pub elements_equipement: Option<String>,
+    #[serde(default)]
+    pub privatifs_accessoires: Option<String>,
+    #[serde(default)]
+    pub parties_communes: Option<String>,
+    #[serde(default)]
+    pub tech_equipements: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -131,6 +143,21 @@ pub struct FinancialTermsSection {
     pub reference_rent_majorated: Option<String>,
     pub rent_complement: Option<String>,
     pub rent_complement_justification: Option<String>,
+    // Layer 2: charge settlement mode and revision conditions
+    #[serde(default)]
+    pub charges_settlement_mode: Option<String>,
+    #[serde(default)]
+    pub rent_revision_conditions: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorksSection {
+    pub applies: bool,
+    pub works_nature: Option<String>,
+    pub works_amount: Option<String>,
+    pub works_date: Option<NaiveDate>,
+    // Colocation insurance
+    pub colocation_insurance_amount: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -274,6 +301,11 @@ impl CanonicalSnapshot {
                 electrical_installation_over_15y: false,
                 gas_installation_over_15y: false,
                 in_risk_zone: false,
+                autres_parties: None,
+                elements_equipement: None,
+                privatifs_accessoires: None,
+                parties_communes: None,
+                tech_equipements: None,
             },
             lease_terms: LeaseTermsSection {
                 lease_kind: String::new(),
@@ -297,11 +329,20 @@ impl CanonicalSnapshot {
                 reference_rent_majorated: None,
                 rent_complement: None,
                 rent_complement_justification: None,
+                charges_settlement_mode: None,
+                rent_revision_conditions: None,
             },
             professional_mandate: ProfessionalMandateSection {
                 applies: false,
                 agency_fee_tenant: None,
                 agency_fee_landlord: None,
+            },
+            works: WorksSection {
+                applies: false,
+                works_nature: None,
+                works_amount: None,
+                works_date: None,
+                colocation_insurance_amount: None,
             },
             diagnostics: DiagnosticsSection {
                 dpe_class: None,
@@ -424,6 +465,11 @@ impl CanonicalSnapshot {
             electrical_installation_over_15y: lease.electrical_installation_over_15y,
             gas_installation_over_15y: lease.gas_installation_over_15y,
             in_risk_zone: lease.in_risk_zone,
+            autres_parties: lease.autres_parties.clone(),
+            elements_equipement: lease.elements_equipement.clone(),
+            privatifs_accessoires: lease.privatifs_accessoires.clone(),
+            parties_communes: lease.parties_communes.clone(),
+            tech_equipements: lease.tech_equipements.clone(),
         };
 
         // --- Lease terms ---
@@ -459,6 +505,8 @@ impl CanonicalSnapshot {
                 .map(|v| v.to_string()),
             rent_complement: lease.rent_complement.as_ref().map(|v| v.to_string()),
             rent_complement_justification: lease.rent_complement_justification.clone(),
+            charges_settlement_mode: lease.charges_settlement_mode.clone(),
+            rent_revision_conditions: lease.rent_revision_conditions.clone(),
         };
 
         // --- Professional mandate ---
@@ -466,6 +514,16 @@ impl CanonicalSnapshot {
             applies: lease.professional_mandate,
             agency_fee_tenant: lease.agency_fee_tenant.as_ref().map(|v| v.to_string()),
             agency_fee_landlord: lease.agency_fee_landlord.as_ref().map(|v| v.to_string()),
+        };
+
+        // --- Works history ---
+        let works_applies = lease.works_nature.is_some() || lease.works_amount.is_some();
+        snapshot.works = WorksSection {
+            applies: works_applies,
+            works_nature: lease.works_nature.clone(),
+            works_amount: lease.works_amount.as_ref().map(|v| v.to_string()),
+            works_date: lease.works_date,
+            colocation_insurance_amount: lease.colocation_insurance_amount.as_ref().map(|v| v.to_string()),
         };
 
         // --- Diagnostics ---
@@ -664,6 +722,17 @@ mod tests {
             annex_electrical_provided: false,
             annex_gas_provided: false,
             annex_risk_provided: false,
+            autres_parties: None,
+            elements_equipement: None,
+            privatifs_accessoires: None,
+            parties_communes: None,
+            tech_equipements: None,
+            charges_settlement_mode: None,
+            colocation_insurance_amount: None,
+            works_nature: None,
+            works_amount: None,
+            works_date: None,
+            rent_revision_conditions: None,
             compliance_status: "compliant".to_string(),
             compliance_errors: vec![],
             status: "active".to_string(),

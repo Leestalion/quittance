@@ -88,6 +88,18 @@ Server will start on `http://localhost:8080`
 - `GET /api/receipts` - List receipts
 - `POST /api/receipts` - Create receipt
 
+### Lease Layer 2 fields
+
+The lease API now accepts and returns additional optional Section II / IV / V
+fields used by the furnished lease template:
+
+- Property description blocks: `autres_parties`, `elements_equipement`, `privatifs_accessoires`, `parties_communes`, `tech_equipements`
+- Financial fields: `charges_settlement_mode`, `colocation_insurance_amount`, `rent_revision_conditions`
+- Works history: `works_nature`, `works_amount`, `works_date`
+
+All of these columns are nullable in PostgreSQL and backward compatible with
+leases created before the migration.
+
 ### Database Migrations
 
 Create a new migration:

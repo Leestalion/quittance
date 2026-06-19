@@ -206,6 +206,17 @@ export interface Lease {
   annex_electrical_provided: boolean
   annex_gas_provided: boolean
   annex_risk_provided: boolean
+  autres_parties?: string
+  elements_equipement?: string
+  privatifs_accessoires?: string
+  parties_communes?: string
+  tech_equipements?: string
+  charges_settlement_mode?: string
+  colocation_insurance_amount?: number
+  works_nature?: string
+  works_amount?: number
+  works_date?: string
+  rent_revision_conditions?: string
   compliance_status: 'pending' | 'compliant' | 'non_compliant'
   compliance_errors: string[]
   status: string
@@ -339,6 +350,17 @@ export interface CreateLease {
   annex_electrical_provided?: boolean
   annex_gas_provided?: boolean
   annex_risk_provided?: boolean
+  autres_parties?: string
+  elements_equipement?: string
+  privatifs_accessoires?: string
+  parties_communes?: string
+  tech_equipements?: string
+  charges_settlement_mode?: string
+  colocation_insurance_amount?: number
+  works_nature?: string
+  works_amount?: number
+  works_date?: string
+  rent_revision_conditions?: string
 }
 
 export interface CreateReceipt {

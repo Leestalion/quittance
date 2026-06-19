@@ -198,6 +198,23 @@ impl TemplateCache {
              Période de construction : <strong>{}</strong>",
             ifl_line, habitat_label, regime_label, construction_label
         );
+
+        // --- Layer 2: property description blocks (Section II detail) ---
+        let opt_block = |label: &str, val: &Option<String>| -> String {
+            match val.as_deref().filter(|s| !s.is_empty()) {
+                Some(v) => format!("<strong>{}</strong> : {}<br>", label, v),
+                None => String::new(),
+            }
+        };
+        let property_descriptions_block = {
+            let autres = opt_block("Autres parties du logement", &snapshot.property.autres_parties);
+            let equip = opt_block("Éléments et équipements", &snapshot.property.elements_equipement);
+            let priv_acc = opt_block("Locaux privatifs accessoires", &snapshot.property.privatifs_accessoires);
+            let communes = opt_block("Parties communes", &snapshot.property.parties_communes);
+            let tech = opt_block("Équipements technologiques", &snapshot.property.tech_equipements);
+            let body = format!("{}{}{}{}{}", autres, equip, priv_acc, communes, tech);
+            if body.trim().is_empty() { String::new() } else { format!("<p>{}</p>", body) }
+        };
         let destination_block = match snapshot.lease_terms.destination.as_str() {
             "mixte_professionnel_habitation" => " Destination des locaux : usage mixte professionnel et d'habitation.".to_string(),
             _ => " Destination des locaux : usage d'habitation.".to_string(),
@@ -246,6 +263,45 @@ impl TemplateCache {
             )
         } else {
             String::new()
+        };
+
+        // --- Layer 2: charge settlement mode block (Section IV) ---
+        let charges_settlement_block = match snapshot.financial_terms.charges_settlement_mode.as_deref() {
+            Some("forfait") => "Modalité de règlement des charges : <strong>forfait</strong> — aucune régularisation annuelle.".to_string(),
+            Some("provisions") => "Modalité de règlement des charges : <strong>provisions sur charges avec régularisation annuelle</strong>.".to_string(),
+            Some("regularisation") | Some("régularisation") => "Modalité de règlement des charges : <strong>régularisation annuelle</strong>.".to_string(),
+            _ => String::new(),
+        };
+
+        // --- Layer 2: rent revision conditions block ---
+        let rent_revision_conditions_block = match snapshot.financial_terms.rent_revision_conditions.as_deref().filter(|s| !s.is_empty()) {
+            Some(cond) => format!("Conditions de révision du loyer : {}", cond),
+            None => String::new(),
+        };
+
+        // --- Layer 2: works history block (Section V) ---
+        let works_block = if snapshot.works.applies {
+            let nature = snapshot.works.works_nature.as_deref().unwrap_or("—");
+            let amount = snapshot.works.works_amount.as_deref().unwrap_or("—");
+            let date = snapshot.works.works_date.map(|d| d.to_string()).unwrap_or_else(|| "—".to_string());
+            format!(
+                "<p>Travaux réalisés depuis le dernier bail :<br>\
+                 Nature : <strong>{}</strong><br>\
+                 Montant : <strong>{} €</strong><br>\
+                 Date d'achèvement : <strong>{}</strong></p>",
+                nature, amount, date
+            )
+        } else {
+            String::new()
+        };
+
+        // --- Layer 2: colocation insurance block ---
+        let colocation_insurance_block = match (snapshot.lease_terms.is_colocation, snapshot.works.colocation_insurance_amount.as_deref()) {
+            (true, Some(amount)) if !amount.is_empty() => format!(
+                "Assurance colocataires incluse : <strong>{} €</strong>",
+                amount
+            ),
+            _ => String::new(),
         };
 
         // --- Section XI required-annex checklist gated by property facts ---
@@ -385,12 +441,18 @@ impl TemplateCache {
             "annex_furniture_inventory_provided": snapshot.lease_sections.section_xi_annexes.annex_furniture_inventory_provided,
             // Pre-rendered legal-completeness blocks
             "property_characterisation_block": property_characterisation_block,
+            "property_descriptions_block": property_descriptions_block,
             "destination_block": destination_block,
             "payment_terms_block": payment_terms_block,
             "energy_year_line": energy_year_line,
             "reference_rent_block": reference_rent_block,
             "rent_complement_block": rent_complement_block,
             "conditional_annex_block": conditional_annex_block,
+            // Layer 2 blocks
+            "charges_settlement_block": charges_settlement_block,
+            "rent_revision_conditions_block": rent_revision_conditions_block,
+            "works_block": works_block,
+            "colocation_insurance_block": colocation_insurance_block,
         });
         
         // Render each section

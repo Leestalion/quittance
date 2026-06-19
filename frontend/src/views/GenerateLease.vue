@@ -89,6 +89,21 @@ const formData = ref({
   annex_electrical_provided: false,
   annex_gas_provided: false,
   annex_risk_provided: false,
+  // Layer 2: Property descriptions (Décret 2015-587 Section II)
+  autres_parties: '',
+  elements_equipement: '',
+  privatifs_accessoires: '',
+  parties_communes: '',
+  tech_equipements: '',
+  // Layer 2: Charges and colocation
+  charges_settlement_mode: '',
+  colocation_insurance_amount: 0,
+  // Layer 2: Work history
+  works_nature: '',
+  works_amount: 0,
+  works_date: '',
+  // Layer 2: Rent revision conditions
+  rent_revision_conditions: '',
 })
 
 const propertyId = computed(() => route.params.propertyId as string)
@@ -104,6 +119,12 @@ const complianceWarnings = computed(() => {
     { ...formData.value, tenant_count: formData.value.tenant_ids.length },
     property.value?.furnished ?? false,
   )
+})
+
+const shouldShowPreviousTenantSection = computed(() => {
+  // Show section only when in edit mode and previous tenant data exists
+  // In create mode, this section would be hidden by default (no prior knowledge of previous tenant)
+  return isEditMode.value && (formData.value.previous_tenant_departure_date !== '' || formData.value.previous_tenant_last_rent > 0)
 })
 
 function applyLeaseToForm(lease: Lease) {
@@ -164,6 +185,17 @@ function applyLeaseToForm(lease: Lease) {
     annex_electrical_provided: lease.annex_electrical_provided ?? false,
     annex_gas_provided: lease.annex_gas_provided ?? false,
     annex_risk_provided: lease.annex_risk_provided ?? false,
+    autres_parties: lease.autres_parties ?? '',
+    elements_equipement: lease.elements_equipement ?? '',
+    privatifs_accessoires: lease.privatifs_accessoires ?? '',
+    parties_communes: lease.parties_communes ?? '',
+    tech_equipements: lease.tech_equipements ?? '',
+    charges_settlement_mode: lease.charges_settlement_mode ?? '',
+    colocation_insurance_amount: Number(lease.colocation_insurance_amount ?? 0),
+    works_nature: lease.works_nature ?? '',
+    works_amount: Number(lease.works_amount ?? 0),
+    works_date: lease.works_date ?? '',
+    rent_revision_conditions: lease.rent_revision_conditions ?? '',
   }
 }
 
@@ -335,6 +367,17 @@ async function generateLease() {
     return
   }
 
+  // Validate new Layer 1 fields
+  if (!formData.value.heating_mode || !formData.value.hot_water_mode || !formData.value.destination) {
+    error.value = 'Les modalités de chauffage, eau chaude et destination sont obligatoires'
+    return
+  }
+
+  if (!formData.value.rent_payment_frequency || !formData.value.rent_payment_timing || !formData.value.rent_payment_period) {
+    error.value = 'Les modalités de paiement du loyer sont obligatoires (fréquence, échéance, période)'
+    return
+  }
+
   if (formData.value.is_colocation && formData.value.tenant_ids.length < 2) {
     error.value = 'Une colocation requiert au moins 2 locataires'
     return
@@ -416,6 +459,17 @@ async function generateLease() {
       annex_electrical_provided: formData.value.annex_electrical_provided,
       annex_gas_provided: formData.value.annex_gas_provided,
       annex_risk_provided: formData.value.annex_risk_provided,
+      autres_parties: formData.value.autres_parties || undefined,
+      elements_equipement: formData.value.elements_equipement || undefined,
+      privatifs_accessoires: formData.value.privatifs_accessoires || undefined,
+      parties_communes: formData.value.parties_communes || undefined,
+      tech_equipements: formData.value.tech_equipements || undefined,
+      charges_settlement_mode: formData.value.charges_settlement_mode || undefined,
+      colocation_insurance_amount: formData.value.is_colocation && formData.value.colocation_insurance_amount > 0 ? formData.value.colocation_insurance_amount : undefined,
+      works_nature: formData.value.works_nature || undefined,
+      works_amount: formData.value.works_amount > 0 ? formData.value.works_amount : undefined,
+      works_date: formData.value.works_date || undefined,
+      rent_revision_conditions: formData.value.rent_revision_conditions || undefined,
     }
 
     const isCreating = !generatedLeaseId.value
@@ -580,6 +634,84 @@ function back() {
           </div>
         </div>
 
+        <h3 class="form-section-title">Description du logement</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="heatingMode">Modalité de chauffage *</label>
+            <select id="heatingMode" v-model="formData.heating_mode" required>
+              <option value="individuel">Chauffage individuel</option>
+              <option value="collectif">Chauffage collectif</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="hotWaterMode">Modalité eau chaude sanitaire *</label>
+            <select id="hotWaterMode" v-model="formData.hot_water_mode" required>
+              <option value="individuelle">Eau chaude individuelle</option>
+              <option value="collective">Eau chaude collective</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="destination">Destination des locaux *</label>
+            <select id="destination" v-model="formData.destination" required>
+              <option value="habitation">Habitation</option>
+              <option value="mixte_professionnel_habitation">Mixte professionnel/habitation</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="dpeClass">Classe DPE *</label>
+            <select id="dpeClass" v-model="formData.dpe_class" required>
+              <option value="A">A</option>
+              <option value="B">B</option>
+              <option value="C">C</option>
+              <option value="D">D</option>
+              <option value="E">E</option>
+              <option value="F">F</option>
+              <option value="G">G</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="energyCostAnnual">Dépenses énergétiques estimées annuelles (€)</label>
+            <input type="number" id="energyCostAnnual" v-model="formData.energy_cost_annual" min="0" step="0.01" />
+            <small class="hint-text">Obligatoire selon la loi (Décret 2015-587). Laissez vide si non disponible - une alerte s'affichera.</small>
+          </div>
+          <div class="form-group">
+            <label for="energyCostYear">Année référence prix énergétique</label>
+            <input type="number" id="energyCostYear" v-model="formData.energy_cost_year" min="2000" />
+          </div>
+        </div>
+
+        <h4 class="form-subsection-title">Détails du logement (optionnel)</h4>
+        <div class="form-group">
+          <label for="autresParties">Autres parties du logement (grenier, terrasse, jardin, etc.)</label>
+          <textarea id="autresParties" v-model="formData.autres_parties" rows="3" placeholder="Ex: Grenier accessible, terrasse 8m², petite cave" />
+        </div>
+
+        <div class="form-group">
+          <label for="elementsEquipement">Éléments et équipements du logement</label>
+          <textarea id="elementsEquipement" v-model="formData.elements_equipement" rows="3" placeholder="Ex: Cuisine équipée, chauffage central gaz, salle d'eau avec baignoire" />
+        </div>
+
+        <div class="form-group">
+          <label for="privatifAccessoires">Locaux privatifs accessoires (cave, parking, garage, etc.)</label>
+          <textarea id="privatifAccessoires" v-model="formData.privatifs_accessoires" rows="3" placeholder="Ex: Cave au sous-sol, garage fermé, place de parking" />
+        </div>
+
+        <div class="form-group">
+          <label for="partiesCommunes">Parties communes de la copropriété</label>
+          <textarea id="partiesCommunes" v-model="formData.parties_communes" rows="3" placeholder="Ex: Ascenseur, local vélo, espaces verts, laverie, gardiennage" />
+        </div>
+
+        <div class="form-group">
+          <label for="techEquipements">Équipements technologiques (accès internet, fibre, TNT, etc.)</label>
+          <textarea id="techEquipements" v-model="formData.tech_equipements" rows="3" placeholder="Ex: Fibre optique présente, connexion TNT possible, accès WiFi public" />
+        </div>
+
         <h3 class="form-section-title">Conditions financières</h3>
         <div class="form-row">
           <div class="form-group">
@@ -591,6 +723,29 @@ function back() {
             <label for="charges">Charges (€) *</label>
             <input type="number" id="charges" v-model="formData.charges" min="0" step="0.01" required />
           </div>
+        </div>
+
+        <h4 class="form-subsection-title">Modalités de paiement</h4>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="rentPaymentFrequency">Périodicité de paiement *</label>
+            <select id="rentPaymentFrequency" v-model="formData.rent_payment_frequency" required>
+              <option value="mensuel">Mensuel</option>
+              <option value="trimestriel">Trimestriel</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="rentPaymentTiming">Échéance de paiement *</label>
+            <select id="rentPaymentTiming" v-model="formData.rent_payment_timing" required>
+              <option value="a_echoir">À échoir (avant la période)</option>
+              <option value="a_terme_echu">À terme échu (après la période)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="rentPaymentPeriod">Date/période de paiement *</label>
+          <input type="text" id="rentPaymentPeriod" v-model="formData.rent_payment_period" placeholder="Ex: le 1er de chaque mois" required />
         </div>
 
         <div class="form-group">
@@ -611,6 +766,17 @@ function back() {
             <input type="checkbox" v-model="formData.rent_revision" />
             Clause de révision du loyer
           </label>
+        </div>
+
+        <h4 class="form-subsection-title">Règlement des charges (optionnel)</h4>
+        <div class="form-group">
+          <label for="chargesSettlementMode">Modalité de règlement des charges</label>
+          <select id="chargesSettlementMode" v-model="formData.charges_settlement_mode">
+            <option value="">Non spécifié</option>
+            <option value="forfait">Forfait (aucune régularisation annuelle)</option>
+            <option value="provisions">Provisions avec régularisation annuelle</option>
+            <option value="regularisation">Régularisation annuelle</option>
+          </select>
         </div>
 
         <h3 class="form-section-title">Colocation</h3>
@@ -656,27 +822,40 @@ function back() {
               placeholder="Ex: salon, cuisine, salle à manger, buanderie"
             />
           </div>
+
+          <div class="form-group">
+            <label for="colocationInsurance">Montant de l'assurance colocation (€)</label>
+            <input
+              type="number"
+              id="colocationInsurance"
+              v-model="formData.colocation_insurance_amount"
+              min="0"
+              step="0.01"
+              placeholder="Montant optionnel incluant assurance"
+            />
+          </div>
         </div>
 
-        <h3 class="form-section-title">Diagnostic énergétique</h3>
-        <div class="form-row">
+        <div class="form-group checkbox" v-if="!formData.is_dom_tom">
+          <label>
+            <input type="checkbox" v-model="formData.is_dom_tom" />
+            Logement en DOM-TOM
+          </label>
+        </div>
+
+        <h3 class="form-section-title">Précédent locataire</h3>
+        <p v-if="!shouldShowPreviousTenantSection" class="hint-text">Section non applicable (nouveau logement ou vacant depuis plus de 18 mois).</p>
+
+        <div v-if="shouldShowPreviousTenantSection" class="form-row">
           <div class="form-group">
-            <label for="dpeClass">Classe DPE *</label>
-            <select id="dpeClass" v-model="formData.dpe_class">
-              <option value="A">A</option>
-              <option value="B">B</option>
-              <option value="C">C</option>
-              <option value="D">D</option>
-              <option value="E">E</option>
-              <option value="F">F</option>
-              <option value="G">G</option>
-            </select>
+            <label for="previousTenantDepartureDate">Date de départ du précédent locataire</label>
+            <input type="date" id="previousTenantDepartureDate" v-model="formData.previous_tenant_departure_date" />
+            <small class="hint-text">Requis si départ < 18 mois</small>
           </div>
-          <div class="form-group checkbox">
-            <label>
-              <input type="checkbox" v-model="formData.is_dom_tom" />
-              Logement en DOM-TOM
-            </label>
+          <div class="form-group">
+            <label for="previousTenantLastRent">Dernier loyer du précédent locataire (€)</label>
+            <input type="number" id="previousTenantLastRent" v-model="formData.previous_tenant_last_rent" min="0" step="0.01" />
+            <small class="hint-text">Requis si départ < 18 mois (pour conformité à la loi)</small>
           </div>
         </div>
 
@@ -737,6 +916,27 @@ function back() {
         <div class="form-group">
           <label for="customClauses">Clauses particulieres (controle legal applique)</label>
           <textarea id="customClauses" v-model="formData.custom_clauses" rows="3" />
+        </div>
+
+        <div class="form-group">
+          <label for="rentRevisionConditions">Conditions de révision du loyer (optionnel)</label>
+          <textarea id="rentRevisionConditions" v-model="formData.rent_revision_conditions" rows="3" placeholder="Ex: Révision annuelle selon indice IRL, février" />
+        </div>
+
+        <h3 class="form-section-title">Travaux réalisés (optionnel)</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="worksNature">Nature des travaux effectués depuis dernier bail</label>
+            <input type="text" id="worksNature" v-model="formData.works_nature" placeholder="Ex: Réfection peinture, remplacement fenêtres" />
+          </div>
+          <div class="form-group">
+            <label for="worksAmount">Montant des travaux (€)</label>
+            <input type="number" id="worksAmount" v-model="formData.works_amount" min="0" step="0.01" />
+          </div>
+          <div class="form-group">
+            <label for="worksDate">Date d'achèvement des travaux</label>
+            <input type="date" id="worksDate" v-model="formData.works_date" />
+          </div>
         </div>
 
         <div class="form-group legal-note">
@@ -985,6 +1185,13 @@ function back() {
   font-size: 1.05rem;
   font-weight: 600;
   color: #374151;
+}
+
+.form-subsection-title {
+  margin: 1rem 0 0.5rem 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #6b7280;
 }
 
 .tenant-multi-list {

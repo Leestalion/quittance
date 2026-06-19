@@ -73,6 +73,21 @@ pub struct Lease {
     pub annex_electrical_provided: bool,
     pub annex_gas_provided: bool,
     pub annex_risk_provided: bool,
+    // Layer 2: Property descriptions (Décret 2015-587 Section II)
+    pub autres_parties: Option<String>,
+    pub elements_equipement: Option<String>,
+    pub privatifs_accessoires: Option<String>,
+    pub parties_communes: Option<String>,
+    pub tech_equipements: Option<String>,
+    // Layer 2: Charges and colocation (Décret 2015-587 Section IV)
+    pub charges_settlement_mode: Option<String>,
+    pub colocation_insurance_amount: Option<BigDecimal>,
+    // Layer 2: Work history
+    pub works_nature: Option<String>,
+    pub works_amount: Option<BigDecimal>,
+    pub works_date: Option<NaiveDate>,
+    // Layer 2: Rent revision conditions
+    pub rent_revision_conditions: Option<String>,
     pub compliance_status: String,
     pub compliance_errors: Vec<String>,
     pub status: String,
@@ -146,4 +161,19 @@ pub struct CreateLease {
     pub annex_electrical_provided: Option<bool>,
     pub annex_gas_provided: Option<bool>,
     pub annex_risk_provided: Option<bool>,
+    // Layer 2: Property descriptions (Décret 2015-587 Section II)
+    pub autres_parties: Option<String>,
+    pub elements_equipement: Option<String>,
+    pub privatifs_accessoires: Option<String>,
+    pub parties_communes: Option<String>,
+    pub tech_equipements: Option<String>,
+    // Layer 2: Charges and colocation (Décret 2015-587 Section IV)
+    pub charges_settlement_mode: Option<String>,
+    pub colocation_insurance_amount: Option<BigDecimal>,
+    // Layer 2: Work history
+    pub works_nature: Option<String>,
+    pub works_amount: Option<BigDecimal>,
+    pub works_date: Option<NaiveDate>,
+    // Layer 2: Rent revision conditions
+    pub rent_revision_conditions: Option<String>,
 }

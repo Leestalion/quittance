@@ -445,6 +445,17 @@ async fn fetch_lease_by_id(db: &Database, id: Uuid) -> Result<Lease, AppError> {
             l.annex_electrical_provided,
             l.annex_gas_provided,
             l.annex_risk_provided,
+            l.autres_parties,
+            l.elements_equipement,
+            l.privatifs_accessoires,
+            l.parties_communes,
+            l.tech_equipements,
+            l.charges_settlement_mode,
+            l.colocation_insurance_amount,
+            l.works_nature,
+            l.works_amount,
+            l.works_date,
+            l.rent_revision_conditions,
             l.compliance_status,
             l.compliance_errors,
             l.status,
@@ -852,6 +863,8 @@ async fn create_lease(
             identifiant_fiscal, habitat_type, regime_juridique, construction_period,
             electrical_installation_over_15y, gas_installation_over_15y, in_risk_zone,
             annex_lead_provided, annex_electrical_provided, annex_gas_provided, annex_risk_provided,
+            autres_parties, elements_equipement, privatifs_accessoires, parties_communes, tech_equipements,
+            charges_settlement_mode, colocation_insurance_amount, works_nature, works_amount, works_date, rent_revision_conditions,
             compliance_status, compliance_errors,
             status
         )
@@ -868,6 +881,8 @@ async fn create_lease(
             $51, $52, $53, $54,
             $55, $56, $57,
             $58, $59, $60, $61,
+            $62, $63, $64, $65, $66,
+            $67, $68, $69, $70, $71, $72,
             'compliant', '{}',
             'active'
         )
@@ -935,6 +950,17 @@ async fn create_lease(
     .bind(annex_electrical_provided)
     .bind(annex_gas_provided)
     .bind(annex_risk_provided)
+    .bind(data.autres_parties.clone())
+    .bind(data.elements_equipement.clone())
+    .bind(data.privatifs_accessoires.clone())
+    .bind(data.parties_communes.clone())
+    .bind(data.tech_equipements.clone())
+    .bind(data.charges_settlement_mode.clone())
+    .bind(data.colocation_insurance_amount.clone())
+    .bind(data.works_nature.clone())
+    .bind(data.works_amount.clone())
+    .bind(data.works_date)
+    .bind(data.rent_revision_conditions.clone())
     .fetch_one(&mut *tx)
     .await?;
 
@@ -1102,6 +1128,17 @@ async fn update_lease(
             annex_electrical_provided = $60,
             annex_gas_provided = $61,
             annex_risk_provided = $62,
+            autres_parties = $63,
+            elements_equipement = $64,
+            privatifs_accessoires = $65,
+            parties_communes = $66,
+            tech_equipements = $67,
+            charges_settlement_mode = $68,
+            colocation_insurance_amount = $69,
+            works_nature = $70,
+            works_amount = $71,
+            works_date = $72,
+            rent_revision_conditions = $73,
             compliance_status = 'compliant',
             compliance_errors = '{}',
             updated_at = CURRENT_TIMESTAMP
@@ -1171,6 +1208,17 @@ async fn update_lease(
     .bind(annex_electrical_provided)
     .bind(annex_gas_provided)
     .bind(annex_risk_provided)
+    .bind(data.autres_parties.clone())
+    .bind(data.elements_equipement.clone())
+    .bind(data.privatifs_accessoires.clone())
+    .bind(data.parties_communes.clone())
+    .bind(data.tech_equipements.clone())
+    .bind(data.charges_settlement_mode.clone())
+    .bind(data.colocation_insurance_amount.clone())
+    .bind(data.works_nature.clone())
+    .bind(data.works_amount.clone())
+    .bind(data.works_date)
+    .bind(data.rent_revision_conditions.clone())
     .fetch_optional(&mut *tx)
     .await?
     .ok_or_else(|| AppError::NotFound(format!("Lease with id {} not found", id)))?;
@@ -1298,6 +1346,17 @@ mod tests {
             annex_electrical_provided: Some(false),
             annex_gas_provided: Some(false),
             annex_risk_provided: Some(false),
+            autres_parties: None,
+            elements_equipement: None,
+            privatifs_accessoires: None,
+            parties_communes: None,
+            tech_equipements: None,
+            charges_settlement_mode: None,
+            colocation_insurance_amount: None,
+            works_nature: None,
+            works_amount: None,
+            works_date: None,
+            rent_revision_conditions: None,
         }
     }
 
