@@ -16,6 +16,11 @@ const editFormData = ref({
   name: '',
   legal_form: '',
   siret: '',
+  representative_name: '',
+  representative_role: '',
+  capital_social: undefined as number | undefined,
+  rcs_city: '',
+  is_family_sci: false,
   address: '',
   phone: '',
   email: ''
@@ -66,6 +71,11 @@ onMounted(async () => {
       name: organization.value.name,
       legal_form: organization.value.legal_form,
       siret: organization.value.siret || '',
+      representative_name: organization.value.representative_name || '',
+      representative_role: organization.value.representative_role || '',
+      capital_social: organization.value.capital_social ?? undefined,
+      rcs_city: organization.value.rcs_city || '',
+      is_family_sci: organization.value.is_family_sci ?? false,
       address: organization.value.address,
       phone: organization.value.phone || '',
       email: organization.value.email || ''
@@ -85,6 +95,11 @@ async function updateOrganization() {
       name: editFormData.value.name,
       legal_form: editFormData.value.legal_form,
       siret: editFormData.value.siret || undefined,
+      representative_name: editFormData.value.representative_name || undefined,
+      representative_role: editFormData.value.representative_role || undefined,
+      capital_social: editFormData.value.capital_social,
+      rcs_city: editFormData.value.rcs_city || undefined,
+      is_family_sci: editFormData.value.is_family_sci,
       address,
       phone: editFormData.value.phone || undefined,
       email: editFormData.value.email || undefined,
@@ -202,6 +217,26 @@ function getRoleLabel(role: string) {
             <p>{{ organization.siret }}</p>
           </div>
 
+          <div class="info-item" v-if="organization.representative_name">
+            <label>👤 Représentant</label>
+            <p>{{ organization.representative_name }}<span v-if="organization.representative_role"> ({{ organization.representative_role }})</span></p>
+          </div>
+
+          <div class="info-item" v-if="organization.capital_social != null">
+            <label>💰 Capital social</label>
+            <p>{{ organization.capital_social }} €</p>
+          </div>
+
+          <div class="info-item" v-if="organization.rcs_city">
+            <label>🏛️ Ville du RCS</label>
+            <p>{{ organization.rcs_city }}</p>
+          </div>
+
+          <div class="info-item" v-if="organization.is_family_sci">
+            <label>👪 SCI familiale</label>
+            <p>Oui</p>
+          </div>
+
           <div class="info-item" v-if="organization.email">
             <label>✉️ Email</label>
             <p>{{ organization.email }}</p>
@@ -273,6 +308,35 @@ function getRoleLabel(role: string) {
           <div class="form-group">
             <label>SIRET</label>
             <input v-model="editFormData.siret" maxlength="14" />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Capital social (€)</label>
+              <input v-model.number="editFormData.capital_social" type="number" min="0" step="0.01" placeholder="1000" />
+            </div>
+            <div class="form-group">
+              <label>Ville du RCS</label>
+              <input v-model="editFormData.rcs_city" placeholder="Nanterre" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Représentant (gérant)</label>
+              <input v-model="editFormData.representative_name" placeholder="Jean Dupont" />
+            </div>
+            <div class="form-group">
+              <label>Qualité du représentant</label>
+              <input v-model="editFormData.representative_role" placeholder="Gérant" />
+            </div>
+          </div>
+
+          <div class="form-group checkbox">
+            <label>
+              <input type="checkbox" v-model="editFormData.is_family_sci" />
+              SCI familiale (associés parents/alliés jusqu'au 4e degré)
+            </label>
           </div>
 
           <div class="form-group">
