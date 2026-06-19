@@ -234,19 +234,19 @@ function back() {
 </script>
 
 <template>
-  <div v-if="loading" class="loading">Chargement...</div>
+  <div v-if="loading" class="loading c-state c-state--loading">Chargement...</div>
 
-  <div v-else-if="error" class="error-state">
+  <div v-else-if="error" class="error-state c-state c-state--error">
     <p>❌ {{ error }}</p>
-    <button @click="router.push(`/properties/${propertyId}`)" class="btn-secondary">
+    <button @click="router.push(`/properties/${propertyId}`)" class="btn-secondary c-button c-button--secondary">
       Retour
     </button>
   </div>
 
   <div v-else-if="!showPreview" class="generate-receipt">
-    <div class="header">
+    <div class="header l-page__header">
       <h1>Générer une quittance</h1>
-      <button @click="back" class="btn-secondary">← Retour</button>
+      <button @click="back" class="btn-secondary c-button c-button--secondary">← Retour</button>
     </div>
 
     <div class="card">
@@ -310,12 +310,12 @@ function back() {
           </template>
         </div>
 
-        <button type="submit" class="btn-primary" :disabled="!monthCoverage?.valid">
+        <button type="submit" class="btn-primary c-button c-button--primary" :disabled="!monthCoverage?.valid">
           📄 Générer la quittance PDF
         </button>
 
         <div class="batch-actions">
-          <button type="button" class="btn-secondary" @click="generateMissingReceiptsUntilPreviousMonth">
+          <button type="button" class="btn-secondary c-button c-button--secondary" @click="generateMissingReceiptsUntilPreviousMonth">
             ♻️ Générer les quittances manquantes jusqu'au mois précédent
           </button>
           <button type="button" class="btn-danger" @click="regenerateAllReceiptsUntilPreviousMonth">
@@ -351,18 +351,19 @@ function back() {
 }
 
 .card {
-  background: white;
+  background: var(--color-surface);
   padding: 2rem;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
 }
 
 .card h2 {
   margin-top: 0;
+  color: var(--color-text-strong);
 }
 
 .info-section {
-  background: #f5f5f5;
+  background: var(--color-surface-muted);
   padding: 1.5rem;
   border-radius: 8px;
   margin-bottom: 2rem;
@@ -383,15 +384,17 @@ function back() {
 
 .form-group label {
   font-weight: 600;
-  color: #333;
+  color: var(--color-text-strong);
 }
 
 .form-group input,
 .form-group select {
   padding: 0.75rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   font-size: 1rem;
+  background: var(--color-surface);
+  color: var(--color-text);
 }
 
 .btn-primary {
@@ -482,35 +485,5 @@ function back() {
   display: grid;
   gap: 0.75rem;
   margin-top: 0.5rem;
-}
-
-@media (prefers-color-scheme: dark) {
-  .card {
-    background: #1a1a1a;
-  }
-
-  .info-section {
-    background: #222;
-  }
-
-  .form-group label {
-    color: #eee;
-  }
-
-  .form-group input,
-  .form-group select {
-    background: #222;
-    color: #eee;
-    border-color: #444;
-  }
-
-  .btn-secondary {
-    background: #222;
-    color: #eee;
-  }
-
-  .btn-secondary:hover {
-    background: #333;
-  }
 }
 </style>

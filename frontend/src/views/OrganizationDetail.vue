@@ -173,28 +173,28 @@ function getRoleLabel(role: string) {
 
 <template>
   <div class="organization-detail">
-    <div v-if="organizationsStore.loading" class="loading">
+    <div v-if="organizationsStore.loading" class="loading c-state c-state--loading">
       Chargement...
     </div>
 
-    <div v-else-if="organizationsStore.error" class="error">
+    <div v-else-if="organizationsStore.error" class="error c-state c-state--error">
       {{ organizationsStore.error }}
     </div>
 
-    <div v-else-if="!organization" class="error">
+    <div v-else-if="!organization" class="error c-state c-state--error">
       Organisation non trouvée
     </div>
 
     <div v-else class="content">
-      <div class="header">
-        <button @click="router.push('/organizations')" class="btn-back">
+      <div class="header l-page__header">
+        <button @click="router.push('/organizations')" class="btn-back c-button c-button--secondary">
           ← Retour
         </button>
         <div class="actions" v-if="isOwner">
-          <button @click="showEditModal = true" class="btn-secondary">
+          <button @click="showEditModal = true" class="btn-secondary c-button c-button--secondary">
             ✏️ Modifier
           </button>
-          <button @click="deleteOrganization" class="btn-danger">
+          <button @click="deleteOrganization" class="btn-danger c-button c-button--danger">
             🗑️ Supprimer
           </button>
         </div>
@@ -252,7 +252,7 @@ function getRoleLabel(role: string) {
       <div class="members-section">
         <div class="section-header">
           <h2>👥 Membres ({{ organization.members.length }})</h2>
-          <button v-if="isOwner" @click="showAddMemberModal = true" class="btn-primary">
+          <button v-if="isOwner" @click="showAddMemberModal = true" class="btn-primary c-button c-button--primary">
             ➕ Ajouter un membre
           </button>
         </div>
@@ -285,8 +285,8 @@ function getRoleLabel(role: string) {
     </div>
 
     <!-- Edit Modal -->
-    <div v-if="showEditModal" class="modal-overlay" @click.self="showEditModal = false">
-      <div class="modal">
+    <div v-if="showEditModal" class="modal-overlay c-modal-overlay" @click.self="showEditModal = false">
+      <div class="modal c-modal">
         <h2>Modifier l'Organisation</h2>
         <form @submit.prevent="updateOrganization">
           <div class="form-group">
@@ -357,10 +357,10 @@ function getRoleLabel(role: string) {
           </div>
 
           <div class="modal-actions">
-            <button type="button" @click="showEditModal = false" class="btn-secondary">
+            <button type="button" @click="showEditModal = false" class="btn-secondary c-button c-button--secondary">
               Annuler
             </button>
-            <button type="submit" class="btn-primary">
+            <button type="submit" class="btn-primary c-button c-button--primary">
               Enregistrer
             </button>
           </div>
@@ -369,8 +369,8 @@ function getRoleLabel(role: string) {
     </div>
 
     <!-- Add Member Modal -->
-    <div v-if="showAddMemberModal" class="modal-overlay" @click.self="showAddMemberModal = false">
-      <div class="modal">
+    <div v-if="showAddMemberModal" class="modal-overlay c-modal-overlay" @click.self="showAddMemberModal = false">
+      <div class="modal c-modal">
         <h2>Ajouter un Membre</h2>
         <form @submit.prevent="addMember">
           <div class="form-group">
@@ -401,10 +401,10 @@ function getRoleLabel(role: string) {
           </div>
 
           <div class="modal-actions">
-            <button type="button" @click="showAddMemberModal = false" class="btn-secondary">
+            <button type="button" @click="showAddMemberModal = false" class="btn-secondary c-button c-button--secondary">
               Annuler
             </button>
-            <button type="submit" class="btn-primary">
+            <button type="submit" class="btn-primary c-button c-button--primary">
               Ajouter
             </button>
           </div>
@@ -424,7 +424,7 @@ function getRoleLabel(role: string) {
 .loading, .error {
   text-align: center;
   padding: 3rem;
-  color: #666;
+  color: var(--color-text-muted);
 }
 
 .header {
@@ -435,20 +435,20 @@ function getRoleLabel(role: string) {
 }
 
 .btn-back {
-  background: #2a2a2a;
-  border: 2px solid #444;
+  background: var(--color-surface-muted);
+  border: 2px solid var(--color-border);
   padding: 0.5rem 1rem;
   border-radius: 8px;
   cursor: pointer;
   font-size: 0.95rem;
-  color: #e0e0e0;
+  color: var(--color-text);
   font-weight: 600;
   transition: all 0.2s;
 }
 
 .btn-back:hover {
-  background: #333;
-  border-color: #667eea;
+  background: var(--color-surface);
+  border-color: var(--color-brand-700);
 }
 
 .actions {
@@ -457,8 +457,8 @@ function getRoleLabel(role: string) {
 }
 
 .org-info {
-  background: #1a1a1a;
-  border: 2px solid #333;
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
   border-radius: 12px;
   padding: 2rem;
   margin-bottom: 2rem;
@@ -474,7 +474,7 @@ function getRoleLabel(role: string) {
 .org-header h1 {
   margin: 0;
   font-size: 2rem;
-  color: #e0e0e0;
+  color: var(--color-text-strong);
 }
 
 .badge {
@@ -495,19 +495,19 @@ function getRoleLabel(role: string) {
 .info-item label {
   display: block;
   font-weight: 600;
-  color: #999;
+  color: var(--color-text-muted);
   margin-bottom: 0.5rem;
   font-size: 0.9rem;
 }
 
 .info-item p {
   margin: 0;
-  color: #e0e0e0;
+  color: var(--color-text);
 }
 
 .members-section {
-  background: #1a1a1a;
-  border: 2px solid #333;
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
   border-radius: 12px;
   padding: 2rem;
 }
@@ -522,7 +522,7 @@ function getRoleLabel(role: string) {
 .section-header h2 {
   margin: 0;
   font-size: 1.5rem;
-  color: #e0e0e0;
+  color: var(--color-text-strong);
 }
 
 .members-list {
@@ -535,15 +535,15 @@ function getRoleLabel(role: string) {
   display: flex;
   align-items: center;
   padding: 1rem;
-  border: 2px solid #2a2a2a;
+  border: 2px solid var(--color-border);
   border-radius: 8px;
   gap: 1rem;
-  background: #0f0f0f;
+  background: var(--color-surface-muted);
   transition: all 0.2s;
 }
 
 .member-card:hover {
-  border-color: #667eea;
+  border-color: var(--color-brand-700);
 }
 
 .member-info {
@@ -552,13 +552,13 @@ function getRoleLabel(role: string) {
 
 .member-name {
   font-weight: 600;
-  color: #e0e0e0;
+  color: var(--color-text-strong);
   margin-bottom: 0.25rem;
 }
 
 .member-email {
   font-size: 0.9rem;
-  color: #999;
+  color: var(--color-text-muted);
 }
 
 .member-details {
@@ -591,7 +591,7 @@ function getRoleLabel(role: string) {
 
 .share {
   font-size: 0.85rem;
-  color: #666;
+  color: var(--color-text-muted);
   font-weight: 500;
 }
 
@@ -609,7 +609,7 @@ function getRoleLabel(role: string) {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-brand-700) 0%, var(--color-brand-500) 100%);
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
@@ -617,19 +617,19 @@ function getRoleLabel(role: string) {
   cursor: pointer;
   font-size: 1rem;
   font-weight: 600;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  box-shadow: var(--shadow-md);
   transition: all 0.2s;
 }
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+  box-shadow: var(--shadow-lg);
 }
 
 .btn-secondary {
-  background: #2a2a2a;
-  color: #e0e0e0;
-  border: 2px solid #444;
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+  border: 2px solid var(--color-border);
   padding: 0.75rem 1.5rem;
   border-radius: 8px;
   cursor: pointer;
@@ -639,8 +639,8 @@ function getRoleLabel(role: string) {
 }
 
 .btn-secondary:hover {
-  background: #333;
-  border-color: #667eea;
+  background: var(--color-surface);
+  border-color: var(--color-brand-700);
 }
 
 .btn-danger {
@@ -676,20 +676,20 @@ function getRoleLabel(role: string) {
 }
 
 .modal {
-  background: #1a1a1a;
+  background: var(--color-surface-muted);
   padding: 2rem;
   border-radius: 12px;
   max-width: 500px;
   width: 90%;
   max-height: 90vh;
   overflow-y: auto;
-  border: 2px solid #333;
+  border: 2px solid var(--color-border);
 }
 
 .modal h2 {
   margin-top: 0;
   margin-bottom: 1.5rem;
-  color: #e0e0e0;
+  color: var(--color-text-strong);
 }
 
 .form-group {
@@ -706,7 +706,7 @@ function getRoleLabel(role: string) {
   display: block;
   margin-bottom: 0.5rem;
   font-weight: 500;
-  color: #e0e0e0;
+  color: var(--color-text-strong);
 }
 
 .form-group input,
@@ -714,11 +714,11 @@ function getRoleLabel(role: string) {
 .form-group textarea {
   width: 100%;
   padding: 0.75rem;
-  border: 2px solid #444;
+  border: 2px solid var(--color-border);
   border-radius: 6px;
   font-size: 1rem;
-  background: #2a2a2a;
-  color: white;
+  background: var(--color-surface);
+  color: var(--color-text);
   box-sizing: border-box;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
@@ -727,8 +727,8 @@ function getRoleLabel(role: string) {
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: var(--color-brand-700);
+  box-shadow: 0 0 0 3px rgba(31, 78, 121, 0.15);
 }
 
 .form-group textarea {
@@ -740,7 +740,7 @@ function getRoleLabel(role: string) {
   display: block;
   margin-top: 0.25rem;
   font-size: 0.85rem;
-  color: #666;
+  color: var(--color-text-muted);
 }
 
 .modal-actions {

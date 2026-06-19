@@ -2,6 +2,10 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import BaseButton from '../components/ui/BaseButton.vue'
+import BaseCard from '../components/ui/BaseCard.vue'
+import BaseField from '../components/ui/BaseField.vue'
+import BaseState from '../components/ui/BaseState.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -29,14 +33,13 @@ async function handleRegister() {
 </script>
 
 <template>
-  <div class="register-page">
-    <div class="register-card">
+  <div class="register-page auth-page">
+    <BaseCard class="register-card auth-card">
       <h1>🏠 Inscription</h1>
-      <p class="subtitle">Créez votre compte propriétaire</p>
+      <p class="subtitle">Créez votre compte bailleur</p>
 
       <form @submit.prevent="handleRegister">
-        <div class="form-group">
-          <label for="name">Nom complet</label>
+        <BaseField label="Nom complet" for-id="name">
           <input
             id="name"
             v-model="name"
@@ -44,10 +47,9 @@ async function handleRegister() {
             required
             placeholder="Jean Dupont"
           />
-        </div>
+        </BaseField>
 
-        <div class="form-group">
-          <label for="email">Email</label>
+        <BaseField label="Email" for-id="email">
           <input
             id="email"
             v-model="email"
@@ -55,10 +57,9 @@ async function handleRegister() {
             required
             placeholder="votre@email.com"
           />
-        </div>
+        </BaseField>
 
-        <div class="form-group">
-          <label for="password">Mot de passe</label>
+        <BaseField label="Mot de passe" for-id="password">
           <input
             id="password"
             v-model="password"
@@ -67,10 +68,9 @@ async function handleRegister() {
             minlength="8"
             placeholder="••••••••"
           />
-        </div>
+        </BaseField>
 
-        <div class="form-group">
-          <label for="address">Adresse</label>
+        <BaseField label="Adresse" for-id="address">
           <textarea
             id="address"
             v-model="address"
@@ -78,138 +78,19 @@ async function handleRegister() {
             rows="3"
             placeholder="123 Rue Example, 75001 Paris"
           />
-        </div>
+        </BaseField>
 
-        <div v-if="error" class="error">{{ error }}</div>
+        <BaseState v-if="error" variant="error">{{ error }}</BaseState>
 
-        <button type="submit" class="submit-btn" :disabled="loading">
+        <BaseButton type="submit" class="auth-submit" :loading="loading" :disabled="loading">
           {{ loading ? 'Inscription...' : 'S\'inscrire' }}
-        </button>
+        </BaseButton>
       </form>
 
       <p class="login-link">
         Déjà un compte ?
         <router-link to="/login">Se connecter</router-link>
       </p>
-    </div>
+    </BaseCard>
   </div>
 </template>
-
-<style scoped>
-.register-page {
-  min-height: 80vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.register-card {
-  background: white;
-  padding: 3rem;
-  border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  max-width: 500px;
-  width: 100%;
-}
-
-.register-card h1 {
-  margin: 0 0 0.5rem;
-  font-size: 2rem;
-  text-align: center;
-}
-
-.subtitle {
-  color: #666;
-  text-align: center;
-  margin: 0 0 2rem;
-}
-
-.form-group {
-  margin-bottom: 1.5rem;
-}
-
-label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-  color: #333;
-}
-
-input,
-textarea {
-  width: 100%;
-  padding: 0.75rem;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-family: inherit;
-  transition: border-color 0.2s;
-  box-sizing: border-box;
-}
-
-input:focus,
-textarea:focus {
-  outline: none;
-  border-color: #667eea;
-}
-
-.error {
-  background: #fee;
-  color: #c33;
-  padding: 0.75rem;
-  border-radius: 8px;
-  margin-bottom: 1rem;
-  text-align: center;
-}
-
-.submit-btn {
-  width: 100%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  padding: 1rem;
-  border-radius: 8px;
-  font-size: 1.1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform 0.2s;
-}
-
-.submit-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-}
-
-.submit-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.login-link {
-  text-align: center;
-  margin-top: 1.5rem;
-  color: #666;
-}
-
-.login-link a {
-  color: #667eea;
-  text-decoration: none;
-  font-weight: 600;
-}
-
-@media (prefers-color-scheme: dark) {
-  .register-card {
-    background: #1a1a1a;
-  }
-
-  label {
-    color: #ddd;
-  }
-
-  input,
-  textarea {
-    background: #2a2a2a;
-    border-color: #444;
-    color: white;
-  }
-}
-</style>

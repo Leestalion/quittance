@@ -102,21 +102,21 @@ function resetForm() {
 
 <template>
   <div class="properties-page">
-    <div class="header">
+    <div class="header l-page__header">
       <h1>Mes propriétés</h1>
-      <button @click="showCreateModal = true" class="add-btn">+ Ajouter une propriété</button>
+      <button @click="showCreateModal = true" class="add-btn c-button c-button--primary">+ Ajouter une propriété</button>
     </div>
 
-    <div v-if="propertiesStore.loading" class="loading">Chargement...</div>
+    <div v-if="propertiesStore.loading" class="loading c-state c-state--loading">Chargement...</div>
 
-    <div v-else-if="propertiesStore.error" class="error-state">
+    <div v-else-if="propertiesStore.error" class="error-state c-state c-state--error">
       <p>❌ {{ propertiesStore.error }}</p>
-      <button @click="propertiesStore.fetchProperties()" class="retry-btn">Réessayer</button>
+      <button @click="propertiesStore.fetchProperties()" class="retry-btn c-button c-button--secondary">Réessayer</button>
     </div>
 
-    <div v-else-if="propertiesStore.properties.length === 0" class="empty-state">
+    <div v-else-if="propertiesStore.properties.length === 0" class="empty-state c-state c-state--empty">
       <p>Aucune propriété enregistrée</p>
-      <button @click="showCreateModal = true">Ajouter votre première propriété</button>
+      <button @click="showCreateModal = true" class="c-button c-button--primary">Ajouter votre première propriété</button>
     </div>
 
     <div v-else class="properties-grid">
@@ -147,8 +147,8 @@ function resetForm() {
     </div>
 
     <!-- Create Modal -->
-    <div v-if="showCreateModal" class="modal-overlay" @click="showCreateModal = false">
-      <div class="modal" @click.stop>
+    <div v-if="showCreateModal" class="modal-overlay c-modal-overlay" @click="showCreateModal = false">
+      <div class="modal c-modal" @click.stop>
         <h2>Nouvelle propriété</h2>
         <form @submit.prevent="handleCreate">
           <div class="form-group">
@@ -215,15 +215,15 @@ function resetForm() {
 
           <div class="modal-actions">
             <button type="button" @click="showCreateModal = false; resetForm()">Annuler</button>
-            <button type="submit" class="primary">Créer</button>
+            <button type="submit" class="primary c-button c-button--primary">Créer</button>
           </div>
         </form>
       </div>
     </div>
 
     <!-- Edit Modal -->
-    <div v-if="showEditModal" class="modal-overlay" @click="showEditModal = false; editingProperty = null">
-      <div class="modal" @click.stop>
+    <div v-if="showEditModal" class="modal-overlay c-modal-overlay" @click="showEditModal = false; editingProperty = null">
+      <div class="modal c-modal" @click.stop>
         <h2>Modifier la propriété</h2>
         <form @submit.prevent="handleUpdate">
           <div class="form-group">
@@ -290,7 +290,7 @@ function resetForm() {
 
           <div class="modal-actions">
             <button type="button" @click="showEditModal = false; editingProperty = null">Annuler</button>
-            <button type="submit" class="primary">Enregistrer</button>
+            <button type="submit" class="primary c-button c-button--primary">Enregistrer</button>
           </div>
         </form>
       </div>
@@ -333,10 +333,10 @@ function resetForm() {
 }
 
 .property-card {
-  background: white;
+  background: var(--color-surface);
   padding: 1.5rem;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
   text-decoration: none;
   color: inherit;
   transition: transform 0.2s, box-shadow 0.2s;
@@ -344,7 +344,7 @@ function resetForm() {
 
 .property-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-md);
 }
 .property-card-header {
   display: flex;
@@ -360,7 +360,7 @@ function resetForm() {
 }
 
 .edit-btn {
-  background: #f0f0f0;
+  background: var(--color-surface-muted);
   border: none;
   padding: 0.5rem;
   border-radius: 6px;
@@ -371,22 +371,22 @@ function resetForm() {
 }
 
 .edit-btn:hover {
-  background: #e0e0e0;
+  background: var(--color-surface);
 }
 .property-card h3 {
   margin: 0 0 0.75rem;
-  color: #333;
+  color: var(--color-text-strong);
 }
 
 .property-details {
-  color: #666;
+  color: var(--color-text-muted);
   font-size: 0.9rem;
 }
 
 .empty-state {
   text-align: center;
   padding: 3rem;
-  background: white;
+  background: var(--color-surface);
   border-radius: 12px;
 }
 
@@ -403,9 +403,9 @@ function resetForm() {
 .error-state {
   text-align: center;
   padding: 3rem;
-  background: white;
+  background: var(--color-surface);
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
 }
 
 .error-state p {
@@ -428,7 +428,7 @@ function resetForm() {
   text-align: center;
   padding: 3rem;
   font-size: 1.1rem;
-  color: #666;
+  color: var(--color-text-muted);
 }
 
 /* Modal styles */
@@ -446,19 +446,19 @@ function resetForm() {
 }
 
 .modal {
-  background: white;
+  background: var(--color-surface-muted);
   padding: 2.5rem;
   border-radius: 16px;
   max-width: 600px;
   width: 90%;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-lg);
 }
 
 .modal h2 {
   margin: 0 0 2rem;
-  color: #1a1a1a;
+  color: var(--color-text-strong);
   font-size: 1.75rem;
 }
 
@@ -481,7 +481,7 @@ label {
   display: block;
   margin-bottom: 0.5rem;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--color-text-strong);
   font-size: 0.95rem;
 }
 
@@ -490,12 +490,13 @@ select,
 textarea {
   width: 100%;
   padding: 0.875rem;
-  border: 2px solid #e0e0e0;
+  border: 2px solid var(--color-border);
   border-radius: 8px;
   font-family: inherit;
   font-size: 1rem;
   transition: border-color 0.2s, box-shadow 0.2s;
-  background: white;
+  background: var(--color-surface);
+  color: var(--color-text);
   box-sizing: border-box;
 }
 
@@ -503,8 +504,8 @@ input:focus,
 select:focus,
 textarea:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: var(--color-brand-700);
+  box-shadow: 0 0 0 3px rgba(31, 78, 121, 0.15);
 }
 
 input[type="checkbox"] {
@@ -536,7 +537,7 @@ textarea {
 small {
   display: block;
   margin-top: 0.5rem;
-  color: #666;
+  color: var(--color-text-muted);
   font-size: 0.85rem;
   line-height: 1.4;
 }
@@ -547,7 +548,7 @@ small {
   justify-content: flex-end;
   margin-top: 2rem;
   padding-top: 1.5rem;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid var(--color-border);
 }
 
 .modal-actions button {
@@ -561,51 +562,22 @@ small {
 }
 
 .modal-actions button:not(.primary) {
-  background: #f5f5f5;
-  color: #666;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
 }
 
 .modal-actions button:not(.primary):hover {
-  background: #e0e0e0;
+  background: var(--color-surface-muted);
 }
 
 .modal-actions button.primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-brand-700) 0%, var(--color-brand-500) 100%);
   color: white;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  box-shadow: var(--shadow-md);
 }
 
 .modal-actions button.primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
-}
-
-@media (prefers-color-scheme: dark) {
-  .property-card,
-  .modal,
-  .empty-state {
-    background: #1a1a1a;
-  }
-
-  .property-card h3 {
-    color: #ddd;
-  }
-
-  .modal h2,
-  .modal label {
-    color: #e0e0e0;
-  }
-
-  input,
-  select,
-  textarea {
-    background: #2a2a2a;
-    border-color: #444;
-    color: white;
-  }
-
-  small {
-    color: #999;
-  }
+  box-shadow: var(--shadow-lg);
 }
 </style>

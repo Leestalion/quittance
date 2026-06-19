@@ -95,30 +95,14 @@ function goBack() {
 }
 
 .secondary-btn {
-  background: #f5f5f5;
-  color: #333;
-  border: 2px solid #e0e0e0;
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+  border: 2px solid var(--color-border);
 }
 
 .primary-btn:hover,
 .secondary-btn:hover {
   transform: translateY(-2px);
-}
-
-@media (prefers-color-scheme: dark) {
-  .error-container h2 {
-    color: #f0f0f0;
-  }
-
-  .error-container p {
-    color: #b0b0b0;
-  }
-
-  .secondary-btn {
-    background: #333;
-    color: #ddd;
-    border-color: #555;
-  }
 }
 
 @media (max-width: 600px) {

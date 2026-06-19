@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useTheme } from '../composables/useTheme'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const { currentTheme, toggleTheme } = useTheme()
 
 function handleLogout() {
   authStore.logout()
@@ -24,7 +26,8 @@ function handleLogout() {
         <router-link to="/tenants">Locataires</router-link>
         <router-link to="/organizations">Organisations</router-link>
         <router-link to="/profile">Profil</router-link>
-        <button @click="handleLogout" class="logout-btn">Déconnexion</button>
+        <button @click="toggleTheme" class="theme-toggle c-button c-button--secondary" :title="`Basculer en mode ${currentTheme === 'light' ? 'sombre' : 'clair'}`">{{ currentTheme === 'light' ? '🌙' : '☀️' }}</button>
+        <button @click="handleLogout" class="logout-btn c-button c-button--secondary">Déconnexion</button>
       </nav>
     </div>
   </header>
@@ -32,7 +35,7 @@ function handleLogout() {
 
 <style scoped>
 .app-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-brand-700) 0%, var(--color-brand-500) 100%);
   color: white;
   padding: 2rem 2rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
@@ -100,9 +103,9 @@ function handleLogout() {
 }
 
 .logout-btn {
-  background: rgba(255, 255, 255, 0.15);
   color: white;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.12);
   padding: 0.625rem 1.25rem;
   border-radius: 8px;
   cursor: pointer;
@@ -115,8 +118,27 @@ function handleLogout() {
 
 .logout-btn:hover {
   background: rgba(255, 255, 255, 0.25);
-  border-color: rgba(255, 255, 255, 0.4);
-  transform: translateY(-1px);
+}
+
+.theme-toggle {
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.12);
+  padding: 0.625rem 0.875rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1.2rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  margin-left: 0.5rem;
+}
+
+.theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.25);
 }
 
 @media (max-width: 768px) {

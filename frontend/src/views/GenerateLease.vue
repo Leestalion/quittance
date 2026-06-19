@@ -462,22 +462,22 @@ function back() {
 </script>
 
 <template>
-  <div v-if="loading" class="loading">Chargement...</div>
+  <div v-if="loading" class="loading c-state c-state--loading">Chargement...</div>
 
-  <div v-else-if="error" class="error-state">
+  <div v-else-if="error" class="error-state c-state c-state--error">
     <p>❌ {{ error }}</p>
-    <button @click="router.push({ path: `/properties/${propertyId}`, query: { tab: 'leases' } })" class="btn-secondary">
+    <button @click="router.push({ path: `/properties/${propertyId}`, query: { tab: 'leases' } })" class="btn-secondary c-button c-button--secondary">
       Retour
     </button>
   </div>
 
   <div v-else-if="!showPreview" class="generate-lease">
-    <div class="header">
+    <div class="header l-page__header">
       <div>
         <p class="context-label">Propriété / Baux</p>
         <h1>{{ isEditMode ? 'Modifier le bail' : 'Créer un nouveau bail' }}</h1>
       </div>
-      <button @click="back" class="btn-secondary">← Retour à la liste des baux</button>
+      <button @click="back" class="btn-secondary c-button c-button--secondary">← Retour à la liste des baux</button>
     </div>
 
     <p v-if="isEditMode" class="edit-mode-note">
@@ -900,7 +900,7 @@ function back() {
           </ul>
         </div>
 
-        <button type="submit" class="btn-primary" :disabled="formData.tenant_ids.length === 0 || loading">
+        <button type="submit" class="btn-primary c-button c-button--primary" :disabled="formData.tenant_ids.length === 0 || loading">
           {{ isEditMode ? '💾 Mettre à jour le bail et régénérer le PDF' : '📄 Créer le bail et générer le PDF' }}
         </button>
       </form>
@@ -953,18 +953,19 @@ function back() {
 }
 
 .card {
-  background: white;
+  background: var(--color-surface);
   padding: 2rem;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
 }
 
 .card h2 {
   margin-top: 0;
+  color: var(--color-text-strong);
 }
 
 .info-section {
-  background: #f5f5f5;
+  background: var(--color-surface-muted);
   padding: 1.5rem;
   border-radius: 8px;
   margin-bottom: 2rem;
@@ -1048,15 +1049,17 @@ function back() {
 
 .form-group label {
   font-weight: 600;
-  color: #333;
+  color: var(--color-text-strong);
 }
 
 .form-group input,
 .form-group select {
   padding: 0.75rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   font-size: 1rem;
+  background: var(--color-surface);
+  color: var(--color-text);
 }
 
 .form-group input[type="checkbox"] {
@@ -1134,36 +1137,6 @@ function back() {
 @media (max-width: 768px) {
   .form-row {
     grid-template-columns: 1fr;
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  .card {
-    background: #1a1a1a;
-  }
-
-  .info-section {
-    background: #222;
-  }
-
-  .form-group label {
-    color: #eee;
-  }
-
-  .form-group input,
-  .form-group select {
-    background: #222;
-    color: #eee;
-    border-color: #444;
-  }
-
-  .btn-secondary {
-    background: #222;
-    color: #eee;
-  }
-
-  .btn-secondary:hover {
-    background: #333;
   }
 }
 </style>

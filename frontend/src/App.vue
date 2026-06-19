@@ -2,11 +2,14 @@
 import { onMounted } from 'vue'
 import { RouterView } from 'vue-router'
 import { useAuthStore } from './stores/auth'
+import { useTheme } from './composables/useTheme'
 import AppHeader from './components/AppHeader.vue'
 
 const authStore = useAuthStore()
+const { initTheme } = useTheme()
 
 onMounted(() => {
+  initTheme()
   if (authStore.isAuthenticated) {
     authStore.fetchCurrentUser()
   }
@@ -14,27 +17,10 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="app">
+  <div class="app-shell">
     <AppHeader />
-    <main class="main-content">
+    <main class="app-main l-page">
       <RouterView />
     </main>
   </div>
 </template>
-
-<style scoped>
-.app {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-.main-content {
-  flex: 1;
-  padding: 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
-  width: 100%;
-  box-sizing: border-box;
-}
-</style>

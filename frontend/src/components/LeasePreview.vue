@@ -164,25 +164,25 @@ async function exportPDF() {
 .lease-frame {
   width: 100%;
   min-height: 80vh;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: white;
+  background: var(--color-surface);
 }
 
 .save-first,
 .preview-status {
   padding: 2rem;
   text-align: center;
-  background: #f9fafb;
-  border: 1px dashed #d1d5db;
+  background: var(--color-surface-muted);
+  border: 1px dashed var(--color-border);
   border-radius: 8px;
-  color: #374151;
+  color: var(--color-text);
 }
 
 .preview-status-error {
-  background: #fee2e2;
-  border-color: #ef4444;
-  color: #991b1b;
+  background: var(--color-error-bg);
+  border-color: var(--color-error-text);
+  color: var(--color-error-text);
 }
 
 .retry-btn {
@@ -196,8 +196,9 @@ async function exportPDF() {
 }
 
 .success-banner {
-  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
-  color: white;
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+  border: 1px solid var(--color-success-text);
   padding: 1rem 1.5rem;
   border-radius: 8px;
   margin-bottom: 1.5rem;
@@ -216,8 +217,8 @@ async function exportPDF() {
 
 .btn-success {
   padding: 0.5rem 1rem;
-  background: white;
-  color: #16a34a;
+  background: var(--color-surface);
+  color: var(--color-success-text);
   text-decoration: none;
   border-radius: 6px;
   font-weight: 600;
@@ -232,9 +233,9 @@ async function exportPDF() {
 }
 
 .compliance-banner {
-  background: #fef3c7;
-  color: #92400e;
-  border: 1px solid #f59e0b;
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
+  border: 1px solid var(--color-warning-text);
   border-radius: 8px;
   padding: 0.75rem 1rem;
   margin-bottom: 1rem;
@@ -242,9 +243,9 @@ async function exportPDF() {
 }
 
 .export-error {
-  background: #fee2e2;
-  color: #991b1b;
-  border: 1px solid #ef4444;
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
+  border: 1px solid var(--color-error-text);
   border-radius: 8px;
   padding: 0.75rem 1rem;
   margin-bottom: 1rem;
@@ -277,29 +278,29 @@ async function exportPDF() {
 }
 
 .back-btn {
-  background: #f5f5f5;
-  color: #333;
+  background: var(--color-surface-muted);
+  color: var(--color-text);
 }
 
 .back-btn:hover {
-  background: #e0e0e0;
+  background: var(--color-surface);
   transform: translateY(-2px);
 }
 
 .pdf-btn {
-  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+  background: linear-gradient(135deg, var(--color-brand-700) 0%, var(--color-brand-500) 100%);
   color: white;
 }
 
 .print-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-brand-700) 0%, var(--color-brand-500) 100%);
   color: white;
 }
 
 .print-btn:hover {
   transform: translateY(-2px);
   border: none;
-  background: #535bf2;
+  background: var(--color-brand-700);
 }
 
 @media print {
@@ -318,14 +319,4 @@ async function exportPDF() {
   }
 }
 
-@media (prefers-color-scheme: light) {
-  .back-btn {
-    background: #f0f0f0;
-    color: #333;
-  }
-
-  .back-btn:hover {
-    background: #e0e0e0;
-  }
-}
 </style>

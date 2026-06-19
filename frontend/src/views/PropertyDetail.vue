@@ -328,11 +328,11 @@ async function deleteProperty() {
 </script>
 
 <template>
-  <div v-if="loading" class="loading">Chargement...</div>
+  <div v-if="loading" class="loading c-state c-state--loading">Chargement...</div>
   
-  <div v-else-if="error" class="error-state">
+  <div v-else-if="error" class="error-state c-state c-state--error">
     <p>❌ {{ error }}</p>
-    <button @click="$router.push('/properties')" class="back-btn">Retour aux propriétés</button>
+    <button @click="$router.push('/properties')" class="back-btn c-button c-button--secondary">Retour aux propriétés</button>
   </div>
 
   <div v-else-if="property" class="property-detail">
@@ -1087,28 +1087,4 @@ async function deleteProperty() {
   background: #b91c1c;
 }
 
-@media (prefers-color-scheme: dark) {
-  .info-card,
-  .leases-list,
-  .receipts-table {
-    background: #1a1a1a;
-  }
-
-  .property-meta,
-  .description p {
-    color: #aaa;
-  }
-
-  .receipts-table thead {
-    background: #222;
-  }
-  
-  .danger-zone {
-    background: rgba(220, 38, 38, 0.1);
-  }
-  
-  .danger-zone p {
-    color: #aaa;
-  }
-}
 </style>

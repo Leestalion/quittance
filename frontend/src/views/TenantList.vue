@@ -100,21 +100,21 @@ async function handleDelete(tenantId: string, tenantName: string) {
 
 <template>
   <div class="tenants-page">
-    <div class="header">
+    <div class="header l-page__header">
       <h1>Mes locataires</h1>
-      <button @click="showCreateModal = true" class="add-btn">+ Ajouter un locataire</button>
+      <button @click="showCreateModal = true" class="add-btn c-button c-button--primary">+ Ajouter un locataire</button>
     </div>
 
-    <div v-if="tenantsStore.loading" class="loading">Chargement...</div>
+    <div v-if="tenantsStore.loading" class="loading c-state c-state--loading">Chargement...</div>
 
-    <div v-else-if="tenantsStore.error" class="error-state">
+    <div v-else-if="tenantsStore.error" class="error-state c-state c-state--error">
       <p>❌ {{ tenantsStore.error }}</p>
-      <button @click="tenantsStore.fetchTenants()" class="retry-btn">Réessayer</button>
+      <button @click="tenantsStore.fetchTenants()" class="retry-btn c-button c-button--secondary">Réessayer</button>
     </div>
 
-    <div v-else-if="tenantsStore.tenants.length === 0" class="empty-state">
+    <div v-else-if="tenantsStore.tenants.length === 0" class="empty-state c-state c-state--empty">
       <p>Aucun locataire enregistré</p>
-      <button @click="showCreateModal = true">Ajouter votre premier locataire</button>
+      <button @click="showCreateModal = true" class="c-button c-button--primary">Ajouter votre premier locataire</button>
     </div>
 
     <div v-else class="tenants-grid">
@@ -136,8 +136,8 @@ async function handleDelete(tenantId: string, tenantName: string) {
     </div>
 
     <!-- Create Modal -->
-    <div v-if="showCreateModal" class="modal-overlay" @click="showCreateModal = false">
-      <div class="modal" @click.stop>
+    <div v-if="showCreateModal" class="modal-overlay c-modal-overlay" @click="showCreateModal = false">
+      <div class="modal c-modal" @click.stop>
         <h2>Nouveau locataire</h2>
         <form @submit.prevent="handleCreate">
           <div class="form-group">
@@ -181,15 +181,15 @@ async function handleDelete(tenantId: string, tenantName: string) {
 
           <div class="modal-actions">
             <button type="button" @click="showCreateModal = false; resetForm()">Annuler</button>
-            <button type="submit" class="primary">Créer</button>
+            <button type="submit" class="primary c-button c-button--primary">Créer</button>
           </div>
         </form>
       </div>
     </div>
 
     <!-- Edit Modal -->
-    <div v-if="showEditModal" class="modal-overlay" @click="showEditModal = false; editingTenant = null">
-      <div class="modal" @click.stop>
+    <div v-if="showEditModal" class="modal-overlay c-modal-overlay" @click="showEditModal = false; editingTenant = null">
+      <div class="modal c-modal" @click.stop>
         <h2>Modifier le locataire</h2>
         <form @submit.prevent="handleUpdate">
           <div class="form-group">
@@ -233,7 +233,7 @@ async function handleDelete(tenantId: string, tenantName: string) {
 
           <div class="modal-actions">
             <button type="button" @click="showEditModal = false; editingTenant = null">Annuler</button>
-            <button type="submit" class="primary">Enregistrer</button>
+            <button type="submit" class="primary c-button c-button--primary">Enregistrer</button>
           </div>
         </form>
       </div>
@@ -270,10 +270,10 @@ async function handleDelete(tenantId: string, tenantName: string) {
 }
 
 .tenant-card {
-  background: white;
+  background: var(--color-surface);
   padding: 1.5rem;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
 }
 
 .tenant-card-header {
@@ -300,7 +300,7 @@ async function handleDelete(tenantId: string, tenantName: string) {
 
 .edit-btn,
 .delete-btn {
-  background: #f0f0f0;
+  background: var(--color-surface-muted);
   border: none;
   padding: 0.5rem;
   border-radius: 6px;
@@ -311,29 +311,29 @@ async function handleDelete(tenantId: string, tenantName: string) {
 }
 
 .edit-btn:hover {
-  background: #e0e0e0;
+  background: var(--color-surface);
 }
 
 .delete-btn {
-  background: #fee;
+  background: var(--color-error-bg);
 }
 
 .delete-btn:hover {
-  background: #fcc;
+  background: var(--color-surface-muted);
 }
 
 .tenant-details {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  color: #666;
+  color: var(--color-text-muted);
   font-size: 0.9rem;
 }
 
 .notes {
   margin-top: 1rem;
   padding: 0.75rem;
-  background: #f5f5f5;
+  background: var(--color-surface-muted);
   border-radius: 6px;
   font-size: 0.85rem;
 }
@@ -341,7 +341,7 @@ async function handleDelete(tenantId: string, tenantName: string) {
 .empty-state {
   text-align: center;
   padding: 3rem;
-  background: white;
+  background: var(--color-surface);
   border-radius: 12px;
 }
 
@@ -357,9 +357,9 @@ async function handleDelete(tenantId: string, tenantName: string) {
 .error-state {
   text-align: center;
   padding: 3rem;
-  background: white;
+  background: var(--color-surface);
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
 }
 
 .error-state p {
@@ -382,7 +382,7 @@ async function handleDelete(tenantId: string, tenantName: string) {
   text-align: center;
   padding: 3rem;
   font-size: 1.1rem;
-  color: #666;
+  color: var(--color-text-muted);
 }
 .modal-overlay {
   position: fixed;
@@ -398,19 +398,19 @@ async function handleDelete(tenantId: string, tenantName: string) {
 }
 
 .modal {
-  background: white;
+  background: var(--color-surface-muted);
   padding: 2.5rem;
   border-radius: 16px;
   max-width: 600px;
   width: 90%;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-lg);
 }
 
 .modal h2 {
   margin: 0 0 2rem;
-  color: #1a1a1a;
+  color: var(--color-text-strong);
   font-size: 1.75rem;
 }
 
@@ -433,7 +433,7 @@ label {
   display: block;
   margin-bottom: 0.5rem;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--color-text-strong);
   font-size: 0.95rem;
 }
 
@@ -441,20 +441,21 @@ input,
 textarea {
   width: 100%;
   padding: 0.875rem;
-  border: 2px solid #e0e0e0;
+  border: 2px solid var(--color-border);
   border-radius: 8px;
   font-family: inherit;
   font-size: 1rem;
   transition: border-color 0.2s, box-shadow 0.2s;
-  background: white;
+  background: var(--color-surface);
+  color: var(--color-text);
   box-sizing: border-box;
 }
 
 input:focus,
 textarea:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: var(--color-brand-700);
+  box-shadow: 0 0 0 3px rgba(31, 78, 121, 0.15);
 }
 
 textarea {
@@ -468,7 +469,7 @@ textarea {
   justify-content: flex-end;
   margin-top: 2rem;
   padding-top: 1.5rem;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid var(--color-border);
 }
 
 .modal-actions button {
@@ -482,46 +483,22 @@ textarea {
 }
 
 .modal-actions button:not(.primary) {
-  background: #f5f5f5;
-  color: #666;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
 }
 
 .modal-actions button:not(.primary):hover {
-  background: #e0e0e0;
+  background: var(--color-surface-muted);
 }
 
 .modal-actions button.primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-brand-700) 0%, var(--color-brand-500) 100%);
   color: white;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  box-shadow: var(--shadow-md);
 }
 
 .modal-actions button.primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
-}
-
-@media (prefers-color-scheme: dark) {
-  .tenant-card,
-  .modal,
-  .empty-state {
-    background: #1a1a1a;
-  }
-
-  .modal h2,
-  .modal label {
-    color: #e0e0e0;
-  }
-
-  .notes {
-    background: #2a2a2a;
-  }
-
-  input,
-  textarea {
-    background: #2a2a2a;
-    border-color: #444;
-    color: white;
-  }
+  box-shadow: var(--shadow-lg);
 }
 </style>

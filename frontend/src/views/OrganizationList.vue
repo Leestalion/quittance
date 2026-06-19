@@ -87,14 +87,14 @@ function isSciProfileIncomplete(org: Organization): boolean {
 
 <template>
   <div class="organization-list">
-    <div class="header">
+    <div class="header l-page__header">
       <h1>📋 Organisations (SCI)</h1>
-      <button @click="showCreateModal = true" class="btn-primary">
+      <button @click="showCreateModal = true" class="btn-primary c-button c-button--primary">
         ➕ Nouvelle Organisation
       </button>
     </div>
 
-    <div v-if="organizationsStore.loading" class="loading">
+    <div v-if="organizationsStore.loading" class="loading c-state c-state--loading">
       Chargement...
     </div>
 
@@ -102,7 +102,7 @@ function isSciProfileIncomplete(org: Organization): boolean {
       {{ organizationsStore.error }}
     </div>
 
-    <div v-else-if="organizationsStore.organizations.length === 0" class="empty-state">
+    <div v-else-if="organizationsStore.organizations.length === 0" class="empty-state c-state c-state--empty">
       <p>📂 Aucune organisation</p>
       <p class="hint">Créez votre première SCI pour gérer des biens en commun</p>
     </div>
@@ -133,8 +133,8 @@ function isSciProfileIncomplete(org: Organization): boolean {
     </div>
 
     <!-- Create Modal -->
-    <div v-if="showCreateModal" class="modal-overlay" @click.self="showCreateModal = false">
-      <div class="modal">
+    <div v-if="showCreateModal" class="modal-overlay c-modal-overlay" @click.self="showCreateModal = false">
+      <div class="modal c-modal">
         <h2>Créer une Organisation</h2>
         <form @submit.prevent="createOrganization">
           <div class="form-group">
@@ -205,10 +205,10 @@ function isSciProfileIncomplete(org: Organization): boolean {
           </div>
 
           <div class="modal-actions">
-            <button type="button" @click="showCreateModal = false" class="btn-secondary">
+            <button type="button" @click="showCreateModal = false" class="btn-secondary c-button c-button--secondary">
               Annuler
             </button>
-            <button type="submit" class="btn-primary">
+            <button type="submit" class="btn-primary c-button c-button--primary">
               Créer
             </button>
           </div>
@@ -233,13 +233,13 @@ function isSciProfileIncomplete(org: Organization): boolean {
 .loading, .error, .empty-state {
   text-align: center;
   padding: 3rem;
-  color: #999;
+  color: var(--color-text-muted);
 }
 
 .empty-state .hint {
   margin-top: 0.5rem;
   font-size: 0.9rem;
-  color: #666;
+  color: var(--color-text-muted);
 }
 
 .organizations-grid {
@@ -249,8 +249,8 @@ function isSciProfileIncomplete(org: Organization): boolean {
 }
 
 .organization-card {
-  background: #1a1a1a;
-  border: 2px solid #333;
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
   border-radius: 12px;
   padding: 1.5rem;
   cursor: pointer;
@@ -258,9 +258,9 @@ function isSciProfileIncomplete(org: Organization): boolean {
 }
 
 .organization-card:hover {
-  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  box-shadow: var(--shadow-lg);
   transform: translateY(-2px);
-  border-color: #667eea;
+  border-color: var(--color-brand-700);
 }
 
 .card-header {
@@ -273,7 +273,7 @@ function isSciProfileIncomplete(org: Organization): boolean {
 .card-header h3 {
   margin: 0;
   font-size: 1.2rem;
-  color: #e0e0e0;
+  color: var(--color-text-strong);
 }
 
 .badge {
@@ -286,7 +286,7 @@ function isSciProfileIncomplete(org: Organization): boolean {
 }
 
 .card-body {
-  color: #999;
+  color: var(--color-text);
 }
 
 .address {
@@ -297,15 +297,15 @@ function isSciProfileIncomplete(org: Organization): boolean {
 .siret {
   margin: 0.5rem 0;
   font-size: 0.85rem;
-  color: #666;
+  color: var(--color-text-muted);
   font-family: monospace;
 }
 
 .sci-incomplete {
   margin: 0.5rem 0;
   font-size: 0.82rem;
-  color: #b45309;
-  background: #fef3c7;
+  color: var(--color-warning-text);
+  background: var(--color-warning-bg);
   border-radius: 6px;
   padding: 0.4rem 0.6rem;
 }
@@ -316,12 +316,12 @@ function isSciProfileIncomplete(org: Organization): boolean {
   gap: 0.25rem;
   margin-top: 1rem;
   padding-top: 1rem;
-  border-top: 1px solid #2a2a2a;
+  border-top: 1px solid var(--color-border);
 }
 
 .contact {
   font-size: 0.85rem;
-  color: #999;
+  color: var(--color-text-muted);
 }
 
 /* Modal styles */
@@ -339,20 +339,20 @@ function isSciProfileIncomplete(org: Organization): boolean {
 }
 
 .modal {
-  background: #1a1a1a;
+  background: var(--color-surface-muted);
   padding: 2rem;
   border-radius: 12px;
   max-width: 500px;
   width: 90%;
   max-height: 90vh;
   overflow-y: auto;
-  border: 2px solid #333;
+  border: 2px solid var(--color-border);
 }
 
 .modal h2 {
   margin-top: 0;
   margin-bottom: 1.5rem;
-  color: #e0e0e0;
+  color: var(--color-text-strong);
 }
 
 .form-group {
@@ -369,7 +369,7 @@ function isSciProfileIncomplete(org: Organization): boolean {
   display: block;
   margin-bottom: 0.5rem;
   font-weight: 500;
-  color: #e0e0e0;
+  color: var(--color-text-strong);
 }
 
 .form-group input,
@@ -377,11 +377,11 @@ function isSciProfileIncomplete(org: Organization): boolean {
 .form-group textarea {
   width: 100%;
   padding: 0.75rem;
-  border: 2px solid #444;
+  border: 2px solid var(--color-border);
   border-radius: 6px;
   font-size: 1rem;
-  background: #2a2a2a;
-  color: white;
+  background: var(--color-surface);
+  color: var(--color-text);
   box-sizing: border-box;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
@@ -390,8 +390,8 @@ function isSciProfileIncomplete(org: Organization): boolean {
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: var(--color-brand-700);
+  box-shadow: 0 0 0 3px rgba(31, 78, 121, 0.15);
 }
 
 .form-group textarea {
@@ -407,7 +407,7 @@ function isSciProfileIncomplete(org: Organization): boolean {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-brand-700) 0%, var(--color-brand-500) 100%);
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
@@ -415,19 +415,19 @@ function isSciProfileIncomplete(org: Organization): boolean {
   cursor: pointer;
   font-size: 1rem;
   font-weight: 600;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  box-shadow: var(--shadow-md);
   transition: all 0.2s;
 }
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+  box-shadow: var(--shadow-lg);
 }
 
 .btn-secondary {
-  background: #2a2a2a;
-  color: #e0e0e0;
-  border: 2px solid #444;
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+  border: 2px solid var(--color-border);
   padding: 0.75rem 1.5rem;
   border-radius: 8px;
   cursor: pointer;
@@ -437,7 +437,7 @@ function isSciProfileIncomplete(org: Organization): boolean {
 }
 
 .btn-secondary:hover {
-  background: #333;
-  border-color: #667eea;
+  background: var(--color-surface);
+  border-color: var(--color-brand-700);
 }
 </style>

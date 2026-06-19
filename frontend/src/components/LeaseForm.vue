@@ -414,20 +414,20 @@ function handleSubmit() {
 
 .back-btn {
   padding: 0.5rem 1rem;
-  background: #333;
-  color: white;
-  border: 1px solid #444;
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
   border-radius: 6px;
   cursor: pointer;
   font-size: 1rem;
 }
 
 .back-btn:hover {
-  background: #444;
+  background: var(--color-surface);
 }
 
 fieldset {
-  border: 1px solid #444;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 1rem;
   margin-bottom: 1rem;
@@ -436,7 +436,7 @@ fieldset {
 legend {
   font-weight: 600;
   padding: 0 0.5rem;
-  color: #646cff;
+  color: var(--color-brand-700);
 }
 
 .form-group {
@@ -447,7 +447,7 @@ legend {
   display: block;
   margin-bottom: 0.25rem;
   font-size: 0.9rem;
-  color: #aaa;
+  color: var(--color-text-muted);
 }
 
 .checkbox-group {
@@ -481,10 +481,10 @@ textarea,
 select {
   width: 100%;
   padding: 0.5rem;
-  border: 1px solid #444;
+  border: 1px solid var(--color-border);
   border-radius: 4px;
-  background: #1a1a1a;
-  color: inherit;
+  background: var(--color-surface);
+  color: var(--color-text);
   font-family: inherit;
   font-size: 1rem;
   box-sizing: border-box;
@@ -494,20 +494,20 @@ input:focus,
 textarea:focus,
 select:focus {
   outline: none;
-  border-color: #646cff;
+  border-color: var(--color-brand-700);
 }
 
 .total-input {
-  background: #2a2a2a;
+  background: var(--color-surface-muted);
   font-weight: 600;
-  color: #4ade80;
+  color: var(--color-success-text);
 }
 
 .submit-btn {
   width: 100%;
   padding: 0.75rem;
   font-size: 1.1rem;
-  background: #646cff;
+  background: linear-gradient(135deg, var(--color-brand-700) 0%, var(--color-brand-500) 100%);
   color: white;
   border: none;
   border-radius: 8px;
@@ -516,37 +516,6 @@ select:focus {
 }
 
 .submit-btn:hover {
-  background: #535bf2;
-}
-
-@media (prefers-color-scheme: light) {
-  fieldset {
-    border-color: #ccc;
-  }
-
-  .form-group label {
-    color: #666;
-  }
-
-  input,
-  textarea,
-  select {
-    background: #fff;
-    border-color: #ccc;
-  }
-
-  .total-input {
-    background: #f0f0f0;
-    color: #16a34a;
-  }
-
-  .back-btn {
-    background: #f0f0f0;
-    color: #333;
-  }
-
-  .back-btn:hover {
-    background: #e0e0e0;
-  }
+  background: var(--color-brand-700);
 }
 </style>

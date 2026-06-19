@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAuthStore } from '../stores/auth'
+import BaseCard from '../components/ui/BaseCard.vue'
 
 const authStore = useAuthStore()
 
@@ -12,7 +13,7 @@ function copyToClipboard(text: string) {
 
 <template>
   <div class="profile-page">
-    <div class="profile-card">
+    <BaseCard class="profile-card">
       <h1>Mon profil</h1>
       
       <div v-if="authStore.user" class="profile-info">
@@ -20,7 +21,7 @@ function copyToClipboard(text: string) {
           <label>Identifiant unique (UUID)</label>
           <div class="uuid-container">
             <code class="uuid-code">{{ authStore.user.id }}</code>
-            <button @click="copyToClipboard(authStore.user.id)" class="copy-btn" title="Copier">
+            <button @click="copyToClipboard(authStore.user.id)" class="copy-btn c-button c-button--secondary" title="Copier">
               📋
             </button>
           </div>
@@ -57,21 +58,14 @@ function copyToClipboard(text: string) {
           <p>{{ authStore.user.birth_place }}</p>
         </div>
       </div>
-    </div>
+    </BaseCard>
   </div>
 </template>
 
 <style scoped>
 .profile-page {
-  max-width: 600px;
+  max-width: 700px;
   margin: 0 auto;
-}
-
-.profile-card {
-  background: white;
-  padding: 2rem;
-  border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .profile-card h1 {
@@ -123,19 +117,12 @@ function copyToClipboard(text: string) {
 }
 
 .copy-btn {
-  background: #667eea;
-  color: white;
-  border: none;
   padding: 0.75rem 1rem;
-  border-radius: 6px;
-  cursor: pointer;
   font-size: 1.2rem;
-  transition: all 0.2s;
   flex-shrink: 0;
 }
 
 .copy-btn:hover {
-  background: #764ba2;
   transform: scale(1.05);
 }
 
@@ -147,28 +134,4 @@ function copyToClipboard(text: string) {
   font-style: italic;
 }
 
-@media (prefers-color-scheme: dark) {
-  .profile-card {
-    background: #1a1a1a;
-  }
-
-  .info-group label {
-    color: #aaa;
-  }
-  
-  .uuid-group {
-    background: #0f0f0f;
-    border-color: #333;
-  }
-  
-  .uuid-code {
-    background: #2a2a2a;
-    color: #e0e0e0;
-    border-color: #444;
-  }
-  
-  .hint {
-    color: #999;
-  }
-}
 </style>
