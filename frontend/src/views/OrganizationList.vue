@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useOrganizationsStore } from '../stores/organizations'
+import type { Organization } from '../types'
 
 const router = useRouter()
 const organizationsStore = useOrganizationsStore()
@@ -13,7 +14,12 @@ const formData = ref({
   siret: '',
   address: '',
   phone: '',
-  email: ''
+  email: '',
+  representative_name: '',
+  representative_role: 'Gérant',
+  capital_social: undefined as number | undefined,
+  rcs_city: '',
+  is_family_sci: false,
 })
 
 onMounted(async () => {
@@ -35,6 +41,11 @@ async function createOrganization() {
       address,
       phone: formData.value.phone || undefined,
       email: formData.value.email || undefined,
+      representative_name: formData.value.representative_name || undefined,
+      representative_role: formData.value.representative_role || undefined,
+      capital_social: formData.value.capital_social,
+      rcs_city: formData.value.rcs_city || undefined,
+      is_family_sci: formData.value.is_family_sci,
     })
     showCreateModal.value = false
     resetForm()
@@ -51,12 +62,26 @@ function resetForm() {
     siret: '',
     address: '',
     phone: '',
-    email: ''
+    email: '',
+    representative_name: '',
+    representative_role: 'Gérant',
+    capital_social: undefined,
+    rcs_city: '',
+    is_family_sci: false,
   }
 }
 
 function viewOrganization(id: string) {
   router.push(`/organizations/${id}`)
+}
+
+function isSciProfileIncomplete(org: Organization): boolean {
+  return (
+    !org.representative_name ||
+    org.capital_social == null ||
+    !org.rcs_city ||
+    !org.siret
+  )
 }
 </script>
 
@@ -96,6 +121,9 @@ function viewOrganization(id: string) {
         <div class="card-body">
           <p class="address">📍 Siège social: {{ org.address }}</p>
           <p v-if="org.siret" class="siret">SIRET: {{ org.siret }}</p>
+          <p v-if="isSciProfileIncomplete(org)" class="sci-incomplete">
+            ⚠️ Profil incomplet pour un bail conforme (représentant, capital, RCS ou SIRET manquant)
+          </p>
           <div class="card-footer">
             <span v-if="org.email" class="contact">✉️ {{ org.email }}</span>
             <span v-if="org.phone" class="contact">📞 {{ org.phone }}</span>
@@ -128,6 +156,35 @@ function viewOrganization(id: string) {
           <div class="form-group">
             <label>SIRET</label>
             <input v-model="formData.siret" placeholder="12345678901234" maxlength="14" />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Capital social (€)</label>
+              <input v-model.number="formData.capital_social" type="number" min="0" step="0.01" placeholder="1000" />
+            </div>
+            <div class="form-group">
+              <label>Ville du RCS</label>
+              <input v-model="formData.rcs_city" placeholder="Nanterre" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Représentant (gérant)</label>
+              <input v-model="formData.representative_name" placeholder="Jean Dupont" />
+            </div>
+            <div class="form-group">
+              <label>Qualité du représentant</label>
+              <input v-model="formData.representative_role" placeholder="Gérant" />
+            </div>
+          </div>
+
+          <div class="form-group checkbox">
+            <label>
+              <input type="checkbox" v-model="formData.is_family_sci" />
+              SCI familiale (associés parents/alliés jusqu'au 4e degré)
+            </label>
           </div>
 
           <div class="form-group">
@@ -242,6 +299,15 @@ function viewOrganization(id: string) {
   font-size: 0.85rem;
   color: #666;
   font-family: monospace;
+}
+
+.sci-incomplete {
+  margin: 0.5rem 0;
+  font-size: 0.82rem;
+  color: #b45309;
+  background: #fef3c7;
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
 }
 
 .card-footer {

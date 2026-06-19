@@ -19,6 +19,11 @@ export interface Organization {
   address: string
   phone?: string
   email?: string
+  representative_name?: string
+  representative_role?: string
+  capital_social?: number
+  rcs_city?: string
+  is_family_sci: boolean
   created_at: string
   updated_at: string
 }
@@ -49,6 +54,11 @@ export interface OrganizationWithMembers {
   address: string
   phone?: string
   email?: string
+  representative_name?: string
+  representative_role?: string
+  capital_social?: number
+  rcs_city?: string
+  is_family_sci: boolean
   created_at: string
   updated_at: string
   members: OrganizationMemberWithUser[]
@@ -185,6 +195,17 @@ export interface Lease {
   annex_dpe_provided: boolean
   annex_erp_provided: boolean
   annex_home_insurance_provided: boolean
+  identifiant_fiscal?: string
+  habitat_type?: 'collectif' | 'individuel'
+  regime_juridique?: 'monopropriete' | 'copropriete'
+  construction_period?: 'avant_1949' | '1949_1974' | '1975_1989' | '1989_2005' | 'depuis_2005'
+  electrical_installation_over_15y: boolean
+  gas_installation_over_15y: boolean
+  in_risk_zone: boolean
+  annex_lead_provided: boolean
+  annex_electrical_provided: boolean
+  annex_gas_provided: boolean
+  annex_risk_provided: boolean
   compliance_status: 'pending' | 'compliant' | 'non_compliant'
   compliance_errors: string[]
   status: string
@@ -223,6 +244,11 @@ export interface CreateOrganization {
   address: string
   phone?: string
   email?: string
+  representative_name?: string
+  representative_role?: string
+  capital_social?: number
+  rcs_city?: string
+  is_family_sci?: boolean
 }
 
 export interface AddOrganizationMember {
@@ -302,6 +328,17 @@ export interface CreateLease {
   annex_dpe_provided?: boolean
   annex_erp_provided?: boolean
   annex_home_insurance_provided?: boolean
+  identifiant_fiscal?: string
+  habitat_type?: 'collectif' | 'individuel'
+  regime_juridique?: 'monopropriete' | 'copropriete'
+  construction_period?: 'avant_1949' | '1949_1974' | '1975_1989' | '1989_2005' | 'depuis_2005'
+  electrical_installation_over_15y?: boolean
+  gas_installation_over_15y?: boolean
+  in_risk_zone?: boolean
+  annex_lead_provided?: boolean
+  annex_electrical_provided?: boolean
+  annex_gas_provided?: boolean
+  annex_risk_provided?: boolean
 }
 
 export interface CreateReceipt {

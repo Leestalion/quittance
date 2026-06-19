@@ -192,6 +192,54 @@ fn validate_lease_payload(data: &CreateLease, property_is_furnished: bool) -> Re
         }
     }
 
+    // --- Identifiant fiscal du logement (IFL): mandatory except DOM-TOM ---
+    if !is_dom_tom && str_is_blank(data.identifiant_fiscal.as_deref()) {
+        return Err(AppError::Validation("Identifiant fiscal du logement is required (except DOM-TOM)".to_string()));
+    }
+
+    // --- Property characterisation (Section II): mandatory for issuance ---
+    if str_is_blank(data.habitat_type.as_deref()) {
+        return Err(AppError::Validation("Habitat type (collectif/individuel) is required".to_string()));
+    }
+    if str_is_blank(data.regime_juridique.as_deref()) {
+        return Err(AppError::Validation("Régime juridique (monopropriété/copropriété) is required".to_string()));
+    }
+    let construction_period = data.construction_period.as_deref().unwrap_or("");
+    if str_is_blank(Some(construction_period)) {
+        return Err(AppError::Validation("Période de construction is required".to_string()));
+    }
+
+    // --- Rent must not exceed the majorated reference rent in encadrée zones ---
+    if rent_controlled {
+        if let Some(majorated) = data.reference_rent_majorated.as_ref() {
+            let has_justified_complement = data
+                .rent_complement
+                .as_ref()
+                .map(|v| v > &zero)
+                .unwrap_or(false)
+                && !str_is_blank(data.rent_complement_justification.as_deref());
+            if &data.monthly_rent > majorated && !has_justified_complement {
+                return Err(AppError::Validation(
+                    "Monthly rent exceeds the majorated reference rent in a rent-controlled zone without a justified complement".to_string(),
+                ));
+            }
+        }
+    }
+
+    // --- Mandatory annexes gated by property facts ---
+    if construction_period == "avant_1949" && !data.annex_lead_provided.unwrap_or(false) {
+        return Err(AppError::Validation("Lead diagnosis (Crep) annex is required for properties built before 1949".to_string()));
+    }
+    if data.electrical_installation_over_15y.unwrap_or(false) && !data.annex_electrical_provided.unwrap_or(false) {
+        return Err(AppError::Validation("Electrical diagnosis annex is required for installations over 15 years".to_string()));
+    }
+    if data.gas_installation_over_15y.unwrap_or(false) && !data.annex_gas_provided.unwrap_or(false) {
+        return Err(AppError::Validation("Gas diagnosis annex is required for installations over 15 years".to_string()));
+    }
+    if data.in_risk_zone.unwrap_or(false) && !data.annex_risk_provided.unwrap_or(false) {
+        return Err(AppError::Validation("État des risques (ERNT) annex is required in a risk zone".to_string()));
+    }
+
     Ok(())
 }
 
@@ -245,6 +293,45 @@ async fn ensure_tenants_access(db: &Database, tenant_ids: &[Uuid], user_id: Uuid
     } else {
         Err(AppError::NotFound("One or more tenants not found".to_string()))
     }
+}
+
+/// For an organization-owned property, block compliant lease issuance when the
+/// organization is missing mandatory legal-person designation fields.
+async fn ensure_organization_landlord_complete(db: &Database, property_id: Uuid) -> Result<(), AppError> {
+    let org = sqlx::query_as::<_, crate::models::organization::Organization>(
+        r#"
+        SELECT o.* FROM organizations o
+        JOIN properties p ON p.organization_id = o.id
+        WHERE p.id = $1
+        "#,
+    )
+    .bind(property_id)
+    .fetch_optional(&db.pool)
+    .await?;
+
+    if let Some(org) = org {
+        let mut missing: Vec<&str> = Vec::new();
+        if org.capital_social.is_none() {
+            missing.push("capital social");
+        }
+        if org.rcs_city.as_deref().map(|s| s.trim().is_empty()).unwrap_or(true) {
+            missing.push("ville du RCS");
+        }
+        if org.siret.as_deref().map(|s| s.trim().is_empty()).unwrap_or(true) {
+            missing.push("numéro d'immatriculation (SIRET/SIREN)");
+        }
+        if org.representative_name.as_deref().map(|s| s.trim().is_empty()).unwrap_or(true) {
+            missing.push("représentant (gérant)");
+        }
+        if !missing.is_empty() {
+            return Err(AppError::Validation(format!(
+                "Le profil de la société bailleur est incomplet pour l'émission d'un bail conforme : {}",
+                missing.join(", ")
+            )));
+        }
+    }
+
+    Ok(())
 }
 
 async fn ensure_lease_access(db: &Database, lease_id: Uuid, user_id: Uuid) -> Result<(), AppError> {
@@ -347,6 +434,17 @@ async fn fetch_lease_by_id(db: &Database, id: Uuid) -> Result<Lease, AppError> {
             l.annex_dpe_provided,
             l.annex_erp_provided,
             l.annex_home_insurance_provided,
+            l.identifiant_fiscal,
+            l.habitat_type,
+            l.regime_juridique,
+            l.construction_period,
+            l.electrical_installation_over_15y,
+            l.gas_installation_over_15y,
+            l.in_risk_zone,
+            l.annex_lead_provided,
+            l.annex_electrical_provided,
+            l.annex_gas_provided,
+            l.annex_risk_provided,
             l.compliance_status,
             l.compliance_errors,
             l.status,
@@ -453,13 +551,28 @@ async fn build_snapshot_for_lease(
     let landlord_id = property.user_id.unwrap_or(requesting_user_id);
     let landlord = fetch_user_by_id(db, landlord_id).await?;
 
-    Ok(CanonicalSnapshot::from_entities(
+    let mut snapshot = CanonicalSnapshot::from_entities(
         lease,
         &property,
         &tenants,
         &landlord,
         CURRENT_LEGAL_TEMPLATE_VERSION.to_string(),
-    ))
+    );
+
+    // For an organization-owned property, the bailleur is the organization
+    // (legal person), not the individual user. Override the landlord parties.
+    if let Some(organization_id) = property.organization_id {
+        let org = sqlx::query_as::<_, crate::models::organization::Organization>(
+            "SELECT * FROM organizations WHERE id = $1",
+        )
+        .bind(organization_id)
+        .fetch_optional(&db.pool)
+        .await?
+        .ok_or_else(|| AppError::NotFound(format!("Organization with id {} not found", organization_id)))?;
+        snapshot.apply_organization_landlord(&org);
+    }
+
+    Ok(snapshot)
 }
 
 /// Build the canonical snapshot for a lease and persist it to the
@@ -679,6 +792,7 @@ async fn create_lease(
     ensure_tenants_access(&db, &data.tenant_ids, user_id).await?;
     let property_is_furnished = get_property_furnished(&db, data.property_id).await?;
     validate_lease_payload(&data, property_is_furnished)?;
+    ensure_organization_landlord_complete(&db, data.property_id).await?;
 
     // Calculate end_date based on start_date + duration_months
     let end_date = data.start_date + chrono::Months::new(data.duration_months as u32);
@@ -715,6 +829,13 @@ async fn create_lease(
     let annex_dpe_provided = data.annex_dpe_provided.unwrap_or(false);
     let annex_erp_provided = data.annex_erp_provided.unwrap_or(false);
     let annex_home_insurance_provided = data.annex_home_insurance_provided.unwrap_or(false);
+    let electrical_installation_over_15y = data.electrical_installation_over_15y.unwrap_or(false);
+    let gas_installation_over_15y = data.gas_installation_over_15y.unwrap_or(false);
+    let in_risk_zone = data.in_risk_zone.unwrap_or(false);
+    let annex_lead_provided = data.annex_lead_provided.unwrap_or(false);
+    let annex_electrical_provided = data.annex_electrical_provided.unwrap_or(false);
+    let annex_gas_provided = data.annex_gas_provided.unwrap_or(false);
+    let annex_risk_provided = data.annex_risk_provided.unwrap_or(false);
 
     let lease_id = sqlx::query_scalar::<_, Uuid>(
         r#"
@@ -727,7 +848,11 @@ async fn create_lease(
             previous_tenant_last_rent, professional_mandate, agency_fee_tenant, agency_fee_landlord, custom_clauses,
             inventory_date, private_room_label, shared_areas_text, furniture_set_id, furniture_inventory, dpe, erp,
             home_insurance, legal_notice_provided, annex_entry_inventory_provided, annex_furniture_inventory_provided,
-            annex_dpe_provided, annex_erp_provided, annex_home_insurance_provided, compliance_status, compliance_errors,
+            annex_dpe_provided, annex_erp_provided, annex_home_insurance_provided,
+            identifiant_fiscal, habitat_type, regime_juridique, construction_period,
+            electrical_installation_over_15y, gas_installation_over_15y, in_risk_zone,
+            annex_lead_provided, annex_electrical_provided, annex_gas_provided, annex_risk_provided,
+            compliance_status, compliance_errors,
             status
         )
         VALUES (
@@ -739,7 +864,11 @@ async fn create_lease(
             $32, $33, $34, $35, $36,
             $37, $38, $39, $40, $41, $42, $43,
             $44, $45, $46, $47,
-            $48, $49, $50, 'compliant', '{}',
+            $48, $49, $50,
+            $51, $52, $53, $54,
+            $55, $56, $57,
+            $58, $59, $60, $61,
+            'compliant', '{}',
             'active'
         )
         RETURNING id
@@ -795,6 +924,17 @@ async fn create_lease(
     .bind(annex_dpe_provided)
     .bind(annex_erp_provided)
     .bind(annex_home_insurance_provided)
+    .bind(data.identifiant_fiscal.clone())
+    .bind(data.habitat_type.clone())
+    .bind(data.regime_juridique.clone())
+    .bind(data.construction_period.clone())
+    .bind(electrical_installation_over_15y)
+    .bind(gas_installation_over_15y)
+    .bind(in_risk_zone)
+    .bind(annex_lead_provided)
+    .bind(annex_electrical_provided)
+    .bind(annex_gas_provided)
+    .bind(annex_risk_provided)
     .fetch_one(&mut *tx)
     .await?;
 
@@ -852,6 +992,7 @@ async fn update_lease(
     ensure_tenants_access(&db, &data.tenant_ids, user_id).await?;
     let property_is_furnished = get_property_furnished(&db, data.property_id).await?;
     validate_lease_payload(&data, property_is_furnished)?;
+    ensure_organization_landlord_complete(&db, data.property_id).await?;
 
     let end_date = data.start_date + chrono::Months::new(data.duration_months as u32);
 
@@ -887,6 +1028,14 @@ async fn update_lease(
     let annex_dpe_provided = data.annex_dpe_provided.unwrap_or(false);
     let annex_erp_provided = data.annex_erp_provided.unwrap_or(false);
     let annex_home_insurance_provided = data.annex_home_insurance_provided.unwrap_or(false);
+
+    let electrical_installation_over_15y = data.electrical_installation_over_15y.unwrap_or(false);
+    let gas_installation_over_15y = data.gas_installation_over_15y.unwrap_or(false);
+    let in_risk_zone = data.in_risk_zone.unwrap_or(false);
+    let annex_lead_provided = data.annex_lead_provided.unwrap_or(false);
+    let annex_electrical_provided = data.annex_electrical_provided.unwrap_or(false);
+    let annex_gas_provided = data.annex_gas_provided.unwrap_or(false);
+    let annex_risk_provided = data.annex_risk_provided.unwrap_or(false);
 
     let updated_id = sqlx::query_scalar::<_, Uuid>(
         r#"
@@ -942,6 +1091,17 @@ async fn update_lease(
             annex_dpe_provided = $49,
             annex_erp_provided = $50,
             annex_home_insurance_provided = $51,
+            identifiant_fiscal = $52,
+            habitat_type = $53,
+            regime_juridique = $54,
+            construction_period = $55,
+            electrical_installation_over_15y = $56,
+            gas_installation_over_15y = $57,
+            in_risk_zone = $58,
+            annex_lead_provided = $59,
+            annex_electrical_provided = $60,
+            annex_gas_provided = $61,
+            annex_risk_provided = $62,
             compliance_status = 'compliant',
             compliance_errors = '{}',
             updated_at = CURRENT_TIMESTAMP
@@ -1000,6 +1160,17 @@ async fn update_lease(
     .bind(annex_dpe_provided)
     .bind(annex_erp_provided)
     .bind(annex_home_insurance_provided)
+    .bind(data.identifiant_fiscal.clone())
+    .bind(data.habitat_type.clone())
+    .bind(data.regime_juridique.clone())
+    .bind(data.construction_period.clone())
+    .bind(electrical_installation_over_15y)
+    .bind(gas_installation_over_15y)
+    .bind(in_risk_zone)
+    .bind(annex_lead_provided)
+    .bind(annex_electrical_provided)
+    .bind(annex_gas_provided)
+    .bind(annex_risk_provided)
     .fetch_optional(&mut *tx)
     .await?
     .ok_or_else(|| AppError::NotFound(format!("Lease with id {} not found", id)))?;
@@ -1116,6 +1287,17 @@ mod tests {
             annex_dpe_provided: Some(true),
             annex_erp_provided: Some(true),
             annex_home_insurance_provided: Some(true),
+            identifiant_fiscal: Some("1234567890ABC".to_string()),
+            habitat_type: Some("collectif".to_string()),
+            regime_juridique: Some("copropriete".to_string()),
+            construction_period: Some("1989_2005".to_string()),
+            electrical_installation_over_15y: Some(false),
+            gas_installation_over_15y: Some(false),
+            in_risk_zone: Some(false),
+            annex_lead_provided: Some(false),
+            annex_electrical_provided: Some(false),
+            annex_gas_provided: Some(false),
+            annex_risk_provided: Some(false),
         }
     }
 
@@ -1178,6 +1360,103 @@ mod tests {
         payload.custom_clauses = Some("Clause avec frais de quittance imposes".to_string());
         let result = validate_lease_payload(&payload, true);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn requires_ifl_for_metropolitan_but_not_dom_tom() {
+        let mut payload = base_payload();
+        payload.is_dom_tom = Some(false);
+        payload.identifiant_fiscal = None;
+        assert!(validate_lease_payload(&payload, true).is_err());
+
+        payload.is_dom_tom = Some(true);
+        // DOM-TOM: IFL not required, but DPE threshold differs — keep a compliant DPE class.
+        payload.dpe_class = Some("A".to_string());
+        assert!(validate_lease_payload(&payload, true).is_ok());
+    }
+
+    #[test]
+    fn requires_property_characterisation() {
+        let mut payload = base_payload();
+        payload.habitat_type = None;
+        assert!(validate_lease_payload(&payload, true).is_err());
+
+        let mut payload = base_payload();
+        payload.regime_juridique = None;
+        assert!(validate_lease_payload(&payload, true).is_err());
+
+        let mut payload = base_payload();
+        payload.construction_period = None;
+        assert!(validate_lease_payload(&payload, true).is_err());
+    }
+
+    #[test]
+    fn rejects_rent_above_majorated_reference_without_complement() {
+        let mut payload = base_payload();
+        payload.rent_controlled = Some(true);
+        payload.reference_rent = Some(BigDecimal::from(800));
+        payload.reference_rent_majorated = Some(BigDecimal::from(900));
+        payload.monthly_rent = BigDecimal::from(1000);
+        payload.rent_complement = None;
+        assert!(validate_lease_payload(&payload, true).is_err());
+    }
+
+    #[test]
+    fn accepts_rent_above_majorated_with_justified_complement() {
+        let mut payload = base_payload();
+        payload.rent_controlled = Some(true);
+        payload.reference_rent = Some(BigDecimal::from(800));
+        payload.reference_rent_majorated = Some(BigDecimal::from(900));
+        payload.monthly_rent = BigDecimal::from(1000);
+        payload.rent_complement = Some(BigDecimal::from(100));
+        payload.rent_complement_justification = Some("Vue exceptionnelle".to_string());
+        assert!(validate_lease_payload(&payload, true).is_ok());
+    }
+
+    #[test]
+    fn accepts_rent_within_majorated_reference() {
+        let mut payload = base_payload();
+        payload.rent_controlled = Some(true);
+        payload.reference_rent = Some(BigDecimal::from(800));
+        payload.reference_rent_majorated = Some(BigDecimal::from(1100));
+        payload.monthly_rent = BigDecimal::from(1000);
+        assert!(validate_lease_payload(&payload, true).is_ok());
+    }
+
+    #[test]
+    fn gates_lead_annex_for_pre_1949() {
+        let mut payload = base_payload();
+        payload.construction_period = Some("avant_1949".to_string());
+        payload.annex_lead_provided = Some(false);
+        assert!(validate_lease_payload(&payload, true).is_err());
+
+        payload.annex_lead_provided = Some(true);
+        assert!(validate_lease_payload(&payload, true).is_ok());
+    }
+
+    #[test]
+    fn gates_electrical_gas_risk_annexes_by_facts() {
+        let mut payload = base_payload();
+        payload.electrical_installation_over_15y = Some(true);
+        payload.annex_electrical_provided = Some(false);
+        assert!(validate_lease_payload(&payload, true).is_err());
+
+        let mut payload = base_payload();
+        payload.gas_installation_over_15y = Some(true);
+        payload.annex_gas_provided = Some(false);
+        assert!(validate_lease_payload(&payload, true).is_err());
+
+        let mut payload = base_payload();
+        payload.in_risk_zone = Some(true);
+        payload.annex_risk_provided = Some(false);
+        assert!(validate_lease_payload(&payload, true).is_err());
+    }
+
+    #[test]
+    fn omits_conditional_annexes_when_facts_absent() {
+        // base_payload has no triggering facts → should pass.
+        let payload = base_payload();
+        assert!(validate_lease_payload(&payload, true).is_ok());
     }
 
     #[test]

@@ -60,6 +60,19 @@ pub struct Lease {
     pub annex_dpe_provided: bool,
     pub annex_erp_provided: bool,
     pub annex_home_insurance_provided: bool,
+    // Section II property characterisation (legal completeness)
+    pub identifiant_fiscal: Option<String>,
+    pub habitat_type: Option<String>,
+    pub regime_juridique: Option<String>,
+    pub construction_period: Option<String>,
+    // Property-fact flags driving conditional annex obligations
+    pub electrical_installation_over_15y: bool,
+    pub gas_installation_over_15y: bool,
+    pub in_risk_zone: bool,
+    pub annex_lead_provided: bool,
+    pub annex_electrical_provided: bool,
+    pub annex_gas_provided: bool,
+    pub annex_risk_provided: bool,
     pub compliance_status: String,
     pub compliance_errors: Vec<String>,
     pub status: String,
@@ -120,4 +133,17 @@ pub struct CreateLease {
     pub annex_dpe_provided: Option<bool>,
     pub annex_erp_provided: Option<bool>,
     pub annex_home_insurance_provided: Option<bool>,
+    // Section II property characterisation (legal completeness)
+    pub identifiant_fiscal: Option<String>,
+    pub habitat_type: Option<String>,
+    pub regime_juridique: Option<String>,
+    pub construction_period: Option<String>,
+    // Property-fact flags driving conditional annex obligations
+    pub electrical_installation_over_15y: Option<bool>,
+    pub gas_installation_over_15y: Option<bool>,
+    pub in_risk_zone: Option<bool>,
+    pub annex_lead_provided: Option<bool>,
+    pub annex_electrical_provided: Option<bool>,
+    pub annex_gas_provided: Option<bool>,
+    pub annex_risk_provided: Option<bool>,
 }

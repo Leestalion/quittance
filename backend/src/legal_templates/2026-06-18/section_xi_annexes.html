@@ -8,10 +8,11 @@
             <li>État des lieux d'entrée : {{annex_entry_inventory_provided}}</li>
             <li>Inventaire du mobilier : {{annex_furniture_inventory_provided}}</li>
         </ul>
+        {{conditional_annex_block}}
     </div>
 
     <div class="signature-block">
-        <div class="signature-line">Le bailleur<br>{{landlord_full_name}}</div>
+        {{landlord_signature}}
         {{lessee_signatures_block}}
     </div>
 </div>

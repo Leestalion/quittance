@@ -58,15 +58,90 @@ The system MUST enforce lease-level access checks for read and delete operations
 - **THEN** the system deletes the lease and returns a successful no-content response
 
 ### Requirement: Lease payload supports current legal and annex fields
-The system MUST accept, validate, persist, and return all lease legal and annex-related fields required to produce a compliant furnished residential lease under the legal template.
+The system MUST accept, validate, persist, and return all lease legal and annex-related fields required to produce a compliant, signable furnished residential lease under the legal template, including identifiant fiscal, property characterisation, payment modalities, and property-fact-gated annexes.
 
 #### Scenario: Persist mandatory contract sections and legal fields
-- **WHEN** a lease is created or updated with all mandatory fields for parties, property designation, destination, financial conditions, guarantees, and legal notices
+- **WHEN** a lease is created or updated with all mandatory fields for parties, property designation (including IFL, habitat type, régime juridique, construction period), destination, financial conditions, payment modalities, guarantees, and legal notices
 - **THEN** the system stores and returns these fields in a structured payload mapped to contract sections
 
 #### Scenario: Persist annex checklist and compliance evidence
-- **WHEN** a lease includes annex metadata and required documentary attachments according to its context
+- **WHEN** a lease includes annex metadata and required documentary attachments according to its property facts
 - **THEN** the system stores annex statuses and enforces required annex presence before allowing compliant document generation
+
+### Requirement: Lease captures and renders the identifiant fiscal du logement
+The system MUST capture the identifiant fiscal du logement (IFL) and render it in the contract, except for DOM-TOM properties where it is not required.
+
+#### Scenario: IFL required for metropolitan property
+- **WHEN** a lease is created or updated for a non-DOM-TOM property without an IFL
+- **THEN** the system rejects the request with a validation error identifying the missing IFL
+
+#### Scenario: IFL rendered in the contract
+- **WHEN** a lease with an IFL is generated
+- **THEN** the contract's housing-designation section displays the IFL
+
+#### Scenario: IFL not required for DOM-TOM property
+- **WHEN** a lease is created for a DOM-TOM property without an IFL
+- **THEN** the system accepts the request and the contract omits the IFL
+
+### Requirement: Lease captures and renders property characterisation
+The system MUST capture and render the property characterisation required by the housing-designation section: habitat type, régime juridique, and période de construction.
+
+#### Scenario: Reject lease missing mandatory property characterisation
+- **WHEN** a lease is created or updated without habitat type, régime juridique, or période de construction
+- **THEN** the system rejects the request identifying each missing field
+
+#### Scenario: Render property characterisation in the contract
+- **WHEN** a lease with full property characterisation is generated
+- **THEN** the contract states the habitat type (collectif/individuel), the régime juridique (monopropriété/copropriété), and the période de construction
+
+### Requirement: Contract renders mandatory financial and term mentions
+The system MUST render the mandatory mentions required for a signable lease that are captured but not currently displayed.
+
+#### Scenario: Render payment modalities
+- **WHEN** a lease is generated
+- **THEN** the financial section states the payment périodicité, the échéance (à échoir / à terme échu), and the payment date or period
+
+#### Scenario: Render destination and energy reference year
+- **WHEN** a lease is generated
+- **THEN** the contract states the destination des locaux and the reference year of the energy expense estimate
+
+#### Scenario: Render rent complement and previous-tenant mentions when applicable
+- **WHEN** a lease has a rent complement or previous-tenant information
+- **THEN** the contract renders the complement amount with its justification and the previous-tenant rent mentions
+
+### Requirement: Rent must not exceed the majorated reference rent in encadrée zones
+The system MUST block issuance when, in a rent-controlled zone, the monthly base rent exceeds the majorated reference rent without a justified complement.
+
+#### Scenario: Reject rent above the majorated reference rent without justified complement
+- **WHEN** a lease in a rent-control zone has a base rent exceeding the majorated reference rent and no justified complement
+- **THEN** the system rejects the request with a validation error
+
+#### Scenario: Accept rent within the majorated reference rent
+- **WHEN** a lease in a rent-control zone has a base rent at or below the majorated reference rent
+- **THEN** the system accepts the rent value
+
+#### Scenario: Accept rent above the reference with a justified complement
+- **WHEN** a lease in a rent-control zone applies a rent complement with a recorded justification
+- **THEN** the system accepts the request and renders the complement and its justification
+
+### Requirement: Mandatory annexes are gated by property facts
+The system MUST require the diagnostic annexes whose obligation depends on property facts and MUST block issuance when a required annex is not provided.
+
+#### Scenario: Require lead diagnosis for pre-1949 construction
+- **WHEN** a lease is for a property constructed before 1949 and the lead risk diagnosis (Crep) is not provided
+- **THEN** the system rejects issuance with a validation error
+
+#### Scenario: Require electrical/gas diagnoses for installations over fifteen years
+- **WHEN** a lease's property has an electrical or gas installation older than fifteen years and the corresponding diagnosis is not provided
+- **THEN** the system rejects issuance with a validation error
+
+#### Scenario: Require risk statement where applicable
+- **WHEN** a lease's property is in a zone requiring an état des risques (ERNT) and it is not provided
+- **THEN** the system rejects issuance with a validation error
+
+#### Scenario: Omit annexes that do not apply
+- **WHEN** a property fact does not trigger a conditional annex
+- **THEN** the system does not require that annex and the contract does not list it as outstanding
 
 ### Requirement: Lease generation MUST enforce legal conditional rules
 The system MUST enforce conditional legal rules for colocations, rent-control zones, diagnostics, and term logic based on lease context. Colocation rules MUST operate on the named set of tenants associated with the lease.
@@ -153,6 +228,40 @@ The system MUST compute a lease compliance status and MUST prevent final real-li
 #### Scenario: Mark lease compliant only when all legal checks pass
 - **WHEN** all mandatory and conditional legal requirements are satisfied
 - **THEN** the system marks the lease as compliant and allows final generation/export
+
+### Requirement: Lease landlord is resolved from the property owner type
+The system MUST determine the lease bailleur from the property's ownership: when the property is owned by an organization, the organization is the landlord; when owned by an individual user, that user is the landlord. The system MUST NOT fall back to the requesting user when the property is organization-owned.
+
+#### Scenario: Organization-owned property resolves to the organization landlord
+- **WHEN** a lease is generated for a property owned by an organization
+- **THEN** the snapshot landlord is the organization (legal person), including its designation and représentant fields
+
+#### Scenario: User-owned property resolves to the individual landlord
+- **WHEN** a lease is generated for a property owned by an individual user
+- **THEN** the snapshot landlord is that user (natural person)
+
+#### Scenario: Organization owner is not replaced by the requesting user
+- **WHEN** a member of an organization generates a lease for an organization-owned property
+- **THEN** the bailleur is the organization, not the requesting member
+
+### Requirement: Contract designates a legal-person bailleur in full
+The system MUST render a complete legal-person designation in Section I when the landlord is an organization: dénomination, forme juridique, capital social, siège social, RCS registration (city and number), qualité (personne morale), and the représentant with their role. For a natural-person landlord, the system MUST render the individual designation as before.
+
+#### Scenario: Section I renders the full SCI designation
+- **WHEN** a lease is generated for an SCI-owned property with complete organization fields
+- **THEN** Section I states the dénomination, forme juridique, capital social, siège social, RCS city and number, and "représentée par [name] en qualité de [role]"
+
+#### Scenario: Family SCI mention rendered only when applicable
+- **WHEN** the organization is flagged as a family SCI
+- **THEN** Section I includes the family-SCI mention; otherwise it is omitted
+
+#### Scenario: Signature block reflects the représentant for an organization
+- **WHEN** a lease is generated for an organization-owned property
+- **THEN** the signature block shows the organization represented by its représentant (name and role), not a per-member signature
+
+#### Scenario: Natural-person landlord designation unchanged
+- **WHEN** a lease is generated for a user-owned property
+- **THEN** Section I renders the individual's name and address as the bailleur and the signature block shows the individual landlord
 
 #### Scenario: Block final issuance when compliance checks fail
 - **WHEN** one or more mandatory legal checks fail

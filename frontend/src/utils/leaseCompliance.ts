@@ -20,6 +20,19 @@ export type LeaseComplianceDraft = {
   annex_dpe_provided: boolean
   annex_entry_inventory_provided: boolean
   annex_furniture_inventory_provided: boolean
+  // Legal completeness
+  is_dom_tom: boolean
+  identifiant_fiscal: string
+  habitat_type: string
+  regime_juridique: string
+  construction_period: string
+  electrical_installation_over_15y: boolean
+  gas_installation_over_15y: boolean
+  in_risk_zone: boolean
+  annex_lead_provided: boolean
+  annex_electrical_provided: boolean
+  annex_gas_provided: boolean
+  annex_risk_provided: boolean
 }
 
 // Mirrors the prohibited-clause keywords enforced by the backend validator.
@@ -108,6 +121,48 @@ export function buildComplianceWarnings(
 
   if (furnished && !draft.annex_furniture_inventory_provided) {
     warnings.push("L'inventaire du mobilier est obligatoire pour un logement meublé.")
+  }
+
+  // --- Legal completeness ---
+  if (!draft.is_dom_tom && !draft.identifiant_fiscal.trim()) {
+    warnings.push("L'identifiant fiscal du logement est obligatoire (sauf DOM-TOM).")
+  }
+
+  if (!draft.habitat_type) {
+    warnings.push('Le type d\'habitat (collectif/individuel) est obligatoire.')
+  }
+
+  if (!draft.regime_juridique) {
+    warnings.push('Le régime juridique (monopropriété/copropriété) est obligatoire.')
+  }
+
+  if (!draft.construction_period) {
+    warnings.push('La période de construction est obligatoire.')
+  }
+
+  if (
+    draft.rent_controlled &&
+    draft.reference_rent_majorated > 0 &&
+    draft.monthly_rent > draft.reference_rent_majorated &&
+    !(draft.rent_complement > 0 && draft.rent_complement_justification.trim())
+  ) {
+    warnings.push('En zone encadrée, le loyer dépasse le loyer de référence majoré sans complément justifié.')
+  }
+
+  if (draft.construction_period === 'avant_1949' && !draft.annex_lead_provided) {
+    warnings.push("Le constat plomb (Crep) est obligatoire pour une construction avant 1949.")
+  }
+
+  if (draft.electrical_installation_over_15y && !draft.annex_electrical_provided) {
+    warnings.push('Le diagnostic électricité est obligatoire (installation de plus de 15 ans).')
+  }
+
+  if (draft.gas_installation_over_15y && !draft.annex_gas_provided) {
+    warnings.push('Le diagnostic gaz est obligatoire (installation de plus de 15 ans).')
+  }
+
+  if (draft.in_risk_zone && !draft.annex_risk_provided) {
+    warnings.push("L'état des risques (ERNT) est obligatoire en zone à risques.")
   }
 
   return warnings

@@ -35,6 +35,24 @@ pub struct PartiesSection {
     pub landlord_full_name: String,
     pub landlord_address: String,
     pub landlord_phone: Option<String>,
+    /// "natural" (individual user) or "legal" (organization / SCI).
+    #[serde(default = "default_landlord_kind")]
+    pub landlord_kind: String,
+    // Legal-person (organization) designation fields, present when landlord_kind == "legal".
+    #[serde(default)]
+    pub landlord_legal_form: Option<String>,
+    #[serde(default)]
+    pub landlord_capital_social: Option<String>,
+    #[serde(default)]
+    pub landlord_rcs_city: Option<String>,
+    #[serde(default)]
+    pub landlord_registration_number: Option<String>,
+    #[serde(default)]
+    pub landlord_representative_name: Option<String>,
+    #[serde(default)]
+    pub landlord_representative_role: Option<String>,
+    #[serde(default)]
+    pub landlord_is_family_sci: bool,
     // Primary lessee (kept for display/contact continuity).
     pub lessee_full_name: String,
     pub lessee_address: String,
@@ -45,6 +63,10 @@ pub struct PartiesSection {
     /// lease this lists every colocataire.
     #[serde(default)]
     pub lessees: Vec<LesseeParty>,
+}
+
+fn default_landlord_kind() -> String {
+    "natural".to_string()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -65,6 +87,22 @@ pub struct PropertySection {
     pub furnished: bool,
     pub heating_mode: Option<String>,
     pub hot_water_mode: Option<String>,
+    // Section II legal characterisation
+    #[serde(default)]
+    pub identifiant_fiscal: Option<String>,
+    #[serde(default)]
+    pub habitat_type: Option<String>,
+    #[serde(default)]
+    pub regime_juridique: Option<String>,
+    #[serde(default)]
+    pub construction_period: Option<String>,
+    // Property-fact flags driving conditional annex obligations
+    #[serde(default)]
+    pub electrical_installation_over_15y: bool,
+    #[serde(default)]
+    pub gas_installation_over_15y: bool,
+    #[serde(default)]
+    pub in_risk_zone: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -85,6 +123,8 @@ pub struct FinancialTermsSection {
     pub charges_monthly: String,
     pub rent_payment_frequency: String,
     pub rent_payment_timing: String,
+    #[serde(default)]
+    pub rent_payment_period: Option<String>,
     pub deposit_amount: String,
     pub rent_controlled: bool,
     pub reference_rent: Option<String>,
@@ -106,6 +146,8 @@ pub struct DiagnosticsSection {
     pub dpe_effective_date: Option<NaiveDate>,
     pub is_dom_tom: bool,
     pub energy_cost_annual: Option<String>,
+    #[serde(default)]
+    pub energy_cost_year: Option<i32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -130,7 +172,7 @@ pub struct LeaseSections {
     pub section_xi_annexes: LeaseSection,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct LeaseSection {
     pub text: Option<String>,
     pub auto_generated: bool,
@@ -172,6 +214,14 @@ pub struct LeaseSection {
     pub annex_erp_provided: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub annex_home_insurance_provided: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub annex_lead_provided: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub annex_electrical_provided: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub annex_gas_provided: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub annex_risk_provided: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -194,6 +244,14 @@ impl CanonicalSnapshot {
                 landlord_full_name: String::new(),
                 landlord_address: String::new(),
                 landlord_phone: None,
+                landlord_kind: "natural".to_string(),
+                landlord_legal_form: None,
+                landlord_capital_social: None,
+                landlord_rcs_city: None,
+                landlord_registration_number: None,
+                landlord_representative_name: None,
+                landlord_representative_role: None,
+                landlord_is_family_sci: false,
                 lessee_full_name: String::new(),
                 lessee_address: String::new(),
                 lessee_email: None,
@@ -209,6 +267,13 @@ impl CanonicalSnapshot {
                 furnished: false,
                 heating_mode: None,
                 hot_water_mode: None,
+                identifiant_fiscal: None,
+                habitat_type: None,
+                regime_juridique: None,
+                construction_period: None,
+                electrical_installation_over_15y: false,
+                gas_installation_over_15y: false,
+                in_risk_zone: false,
             },
             lease_terms: LeaseTermsSection {
                 lease_kind: String::new(),
@@ -225,6 +290,7 @@ impl CanonicalSnapshot {
                 charges_monthly: "0".to_string(),
                 rent_payment_frequency: String::new(),
                 rent_payment_timing: String::new(),
+                rent_payment_period: None,
                 deposit_amount: "0".to_string(),
                 rent_controlled: false,
                 reference_rent: None,
@@ -242,6 +308,7 @@ impl CanonicalSnapshot {
                 dpe_effective_date: None,
                 is_dom_tom: false,
                 energy_cost_annual: None,
+                energy_cost_year: None,
             },
             previous_tenancy: PreviousTenancySection {
                 applies: false,
@@ -249,166 +316,29 @@ impl CanonicalSnapshot {
                 previous_tenant_departure_date: None,
             },
             lease_sections: LeaseSections {
-                section_i_parties: LeaseSection {
-                    text: None,
-                    auto_generated: true,
-                    locked: None,
-                    validated: None,
-                    conditional: None,
-                    applies_when: None,
-                    computed_for_lease_kind: None,
-                    prohibited_patterns_rejected: None,
-                    annex_legal_notice_provided: None,
-                    annex_dpe_provided: None,
-                    annex_entry_inventory_provided: None,
-                    annex_furniture_inventory_provided: None,
-                    annex_erp_provided: None,
-                    annex_home_insurance_provided: None,
-                },
-                section_ii_property: LeaseSection {
-                    text: None,
-                    auto_generated: true,
-                    locked: None,
-                    validated: None,
-                    conditional: None,
-                    applies_when: None,
-                    computed_for_lease_kind: None,
-                    prohibited_patterns_rejected: None,
-                    annex_legal_notice_provided: None,
-                    annex_dpe_provided: None,
-                    annex_entry_inventory_provided: None,
-                    annex_furniture_inventory_provided: None,
-                    annex_erp_provided: None,
-                    annex_home_insurance_provided: None,
-                },
-                section_iii_duration: LeaseSection {
-                    text: None,
-                    auto_generated: true,
-                    locked: None,
-                    validated: None,
-                    conditional: None,
-                    applies_when: None,
-                    computed_for_lease_kind: None,
-                    prohibited_patterns_rejected: None,
-                    annex_legal_notice_provided: None,
-                    annex_dpe_provided: None,
-                    annex_entry_inventory_provided: None,
-                    annex_furniture_inventory_provided: None,
-                    annex_erp_provided: None,
-                    annex_home_insurance_provided: None,
-                },
-                section_iv_financial: LeaseSection {
-                    text: None,
-                    auto_generated: true,
-                    locked: None,
-                    validated: None,
-                    conditional: None,
-                    applies_when: None,
-                    computed_for_lease_kind: None,
-                    prohibited_patterns_rejected: None,
-                    annex_legal_notice_provided: None,
-                    annex_dpe_provided: None,
-                    annex_entry_inventory_provided: None,
-                    annex_furniture_inventory_provided: None,
-                    annex_erp_provided: None,
-                    annex_home_insurance_provided: None,
-                },
-                section_v_works: LeaseSection {
-                    text: None,
-                    auto_generated: true,
-                    locked: None,
-                    validated: None,
-                    conditional: None,
-                    applies_when: None,
-                    computed_for_lease_kind: None,
-                    prohibited_patterns_rejected: None,
-                    annex_legal_notice_provided: None,
-                    annex_dpe_provided: None,
-                    annex_entry_inventory_provided: None,
-                    annex_furniture_inventory_provided: None,
-                    annex_erp_provided: None,
-                    annex_home_insurance_provided: None,
-                },
-                section_vi_guarantees: LeaseSection {
-                    text: None,
-                    auto_generated: true,
-                    locked: None,
-                    validated: None,
-                    conditional: None,
-                    applies_when: None,
-                    computed_for_lease_kind: None,
-                    prohibited_patterns_rejected: None,
-                    annex_legal_notice_provided: None,
-                    annex_dpe_provided: None,
-                    annex_entry_inventory_provided: None,
-                    annex_furniture_inventory_provided: None,
-                    annex_erp_provided: None,
-                    annex_home_insurance_provided: None,
-                },
+                section_i_parties: LeaseSection { auto_generated: true, ..Default::default() },
+                section_ii_property: LeaseSection { auto_generated: true, ..Default::default() },
+                section_iii_duration: LeaseSection { auto_generated: true, ..Default::default() },
+                section_iv_financial: LeaseSection { auto_generated: true, ..Default::default() },
+                section_v_works: LeaseSection { auto_generated: true, ..Default::default() },
+                section_vi_guarantees: LeaseSection { auto_generated: true, ..Default::default() },
                 section_vii_solidarity: LeaseSection {
-                    text: None,
                     auto_generated: false,
-                    locked: None,
-                    validated: None,
                     conditional: Some(true),
                     applies_when: Some("is_colocation".to_string()),
-                    computed_for_lease_kind: None,
-                    prohibited_patterns_rejected: None,
-                    annex_legal_notice_provided: None,
-                    annex_dpe_provided: None,
-                    annex_entry_inventory_provided: None,
-                    annex_furniture_inventory_provided: None,
-                    annex_erp_provided: None,
-                    annex_home_insurance_provided: None,
+                    ..Default::default()
                 },
                 section_viii_resolutory: LeaseSection {
-                    text: None,
                     auto_generated: true,
                     locked: Some(true),
-                    validated: None,
-                    conditional: None,
-                    applies_when: None,
-                    computed_for_lease_kind: None,
-                    prohibited_patterns_rejected: None,
-                    annex_legal_notice_provided: None,
-                    annex_dpe_provided: None,
-                    annex_entry_inventory_provided: None,
-                    annex_furniture_inventory_provided: None,
-                    annex_erp_provided: None,
-                    annex_home_insurance_provided: None,
+                    ..Default::default()
                 },
                 section_x_custom: LeaseSection {
-                    text: None,
                     auto_generated: false,
-                    locked: None,
                     validated: Some(true),
-                    conditional: None,
-                    applies_when: None,
-                    computed_for_lease_kind: None,
-                    prohibited_patterns_rejected: None,
-                    annex_legal_notice_provided: None,
-                    annex_dpe_provided: None,
-                    annex_entry_inventory_provided: None,
-                    annex_furniture_inventory_provided: None,
-                    annex_erp_provided: None,
-                    annex_home_insurance_provided: None,
+                    ..Default::default()
                 },
-                section_xi_annexes: LeaseSection {
-                    text: None,
-                    auto_generated: true,
-                    locked: None,
-                    validated: None,
-                    conditional: None,
-                    applies_when: None,
-                    computed_for_lease_kind: None,
-                    prohibited_patterns_rejected: None,
-                    annex_legal_notice_provided: None,
-                    annex_dpe_provided: None,
-                    annex_entry_inventory_provided: None,
-                    annex_furniture_inventory_provided: None,
-                    annex_erp_provided: None,
-                    annex_home_insurance_provided: None,
-                },
+                section_xi_annexes: LeaseSection { auto_generated: true, ..Default::default() },
             },
             compliance: ComplianceSection {
                 compliance_status: "pending".to_string(),
@@ -443,6 +373,14 @@ impl CanonicalSnapshot {
             landlord_full_name: landlord.name.clone(),
             landlord_address: landlord.address.clone(),
             landlord_phone: landlord.phone.clone(),
+            landlord_kind: "natural".to_string(),
+            landlord_legal_form: None,
+            landlord_capital_social: None,
+            landlord_rcs_city: None,
+            landlord_registration_number: None,
+            landlord_representative_name: None,
+            landlord_representative_role: None,
+            landlord_is_family_sci: false,
             lessee_full_name: primary_tenant.name.clone(),
             lessee_address: primary_tenant.address.clone().unwrap_or_default(),
             lessee_email: primary_tenant.email.clone(),
@@ -479,6 +417,13 @@ impl CanonicalSnapshot {
             furnished: property.furnished,
             heating_mode: lease.heating_mode.clone(),
             hot_water_mode: lease.hot_water_mode.clone(),
+            identifiant_fiscal: lease.identifiant_fiscal.clone(),
+            habitat_type: lease.habitat_type.clone(),
+            regime_juridique: lease.regime_juridique.clone(),
+            construction_period: lease.construction_period.clone(),
+            electrical_installation_over_15y: lease.electrical_installation_over_15y,
+            gas_installation_over_15y: lease.gas_installation_over_15y,
+            in_risk_zone: lease.in_risk_zone,
         };
 
         // --- Lease terms ---
@@ -504,6 +449,7 @@ impl CanonicalSnapshot {
             charges_monthly: lease.charges.to_string(),
             rent_payment_frequency: lease.rent_payment_frequency.clone(),
             rent_payment_timing: lease.rent_payment_timing.clone(),
+            rent_payment_period: lease.rent_payment_period.clone(),
             deposit_amount: lease.deposit.to_string(),
             rent_controlled: lease.rent_controlled,
             reference_rent: lease.reference_rent.as_ref().map(|v| v.to_string()),
@@ -528,6 +474,7 @@ impl CanonicalSnapshot {
             dpe_effective_date: Some(lease.start_date),
             is_dom_tom: lease.is_dom_tom,
             energy_cost_annual: lease.energy_cost_annual.clone(),
+            energy_cost_year: lease.energy_cost_year,
         };
 
         // --- Previous tenancy ---
@@ -599,6 +546,15 @@ impl CanonicalSnapshot {
             Some(lease.annex_erp_provided);
         snapshot.lease_sections.section_xi_annexes.annex_home_insurance_provided =
             Some(lease.annex_home_insurance_provided);
+        // Fact-gated diagnostic annexes
+        snapshot.lease_sections.section_xi_annexes.annex_lead_provided =
+            Some(lease.annex_lead_provided);
+        snapshot.lease_sections.section_xi_annexes.annex_electrical_provided =
+            Some(lease.annex_electrical_provided);
+        snapshot.lease_sections.section_xi_annexes.annex_gas_provided =
+            Some(lease.annex_gas_provided);
+        snapshot.lease_sections.section_xi_annexes.annex_risk_provided =
+            Some(lease.annex_risk_provided);
 
         // --- Compliance ---
         let is_compliant = lease.compliance_status == "compliant";
@@ -609,6 +565,27 @@ impl CanonicalSnapshot {
         };
 
         snapshot
+    }
+
+    /// Apply an organization (legal-person) landlord to the snapshot parties,
+    /// overriding the natural-person defaults. The représentant signs for the SCI.
+    pub fn apply_organization_landlord(&mut self, org: &crate::models::organization::Organization) {
+        self.parties.landlord_full_name = org.name.clone();
+        self.parties.landlord_address = org.address.clone();
+        self.parties.landlord_phone = org.phone.clone();
+        self.parties.landlord_kind = "legal".to_string();
+        self.parties.landlord_legal_form = Some(org.legal_form.clone());
+        self.parties.landlord_capital_social = org.capital_social.as_ref().map(|v| v.to_string());
+        self.parties.landlord_rcs_city = org.rcs_city.clone();
+        // The RCS registration number is the SIREN (first 9 digits of the SIRET).
+        self.parties.landlord_registration_number = org
+            .siret
+            .as_ref()
+            .map(|s| s.chars().filter(|c| c.is_ascii_digit()).take(9).collect::<String>())
+            .filter(|s| !s.is_empty());
+        self.parties.landlord_representative_name = org.representative_name.clone();
+        self.parties.landlord_representative_role = org.representative_role.clone();
+        self.parties.landlord_is_family_sci = org.is_family_sci;
     }
 }
 
@@ -676,6 +653,17 @@ mod tests {
             annex_dpe_provided: true,
             annex_erp_provided: true,
             annex_home_insurance_provided: true,
+            identifiant_fiscal: Some("1234567890ABC".to_string()),
+            habitat_type: Some("collectif".to_string()),
+            regime_juridique: Some("copropriete".to_string()),
+            construction_period: Some("1989_2005".to_string()),
+            electrical_installation_over_15y: false,
+            gas_installation_over_15y: false,
+            in_risk_zone: false,
+            annex_lead_provided: false,
+            annex_electrical_provided: false,
+            annex_gas_provided: false,
+            annex_risk_provided: false,
             compliance_status: "compliant".to_string(),
             compliance_errors: vec![],
             status: "active".to_string(),
@@ -845,5 +833,51 @@ mod tests {
         );
         assert_eq!(snapshot.parties.lessees.len(), 1);
         assert!(snapshot.lease_sections.section_vii_solidarity.text.is_none());
+    }
+
+    #[test]
+    fn apply_organization_landlord_overrides_natural_person() {
+        use crate::models::organization::Organization;
+        use chrono::Utc;
+        let lease = make_lease("standard", 12);
+        let mut snapshot = CanonicalSnapshot::from_entities(
+            &lease,
+            &make_property(),
+            &[make_tenant()],
+            &make_landlord(),
+            "2026-06-18".to_string(),
+        );
+        // Initially a natural person (the individual landlord).
+        assert_eq!(snapshot.parties.landlord_kind, "natural");
+
+        let org = Organization {
+            id: Uuid::new_v4(),
+            name: "SCI MD16".to_string(),
+            legal_form: "SCI".to_string(),
+            siret: Some("12345678900012".to_string()),
+            address: "10 rue du Test".to_string(),
+            phone: None,
+            email: None,
+            representative_name: Some("Thomas Martin".to_string()),
+            representative_role: Some("Gérant".to_string()),
+            capital_social: Some(BigDecimal::from(1000)),
+            rcs_city: Some("Paris".to_string()),
+            is_family_sci: false,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+        snapshot.apply_organization_landlord(&org);
+
+        assert_eq!(snapshot.parties.landlord_kind, "legal");
+        assert_eq!(snapshot.parties.landlord_full_name, "SCI MD16");
+        // SIREN = first 9 digits of the SIRET.
+        assert_eq!(
+            snapshot.parties.landlord_registration_number.as_deref(),
+            Some("123456789")
+        );
+        assert_eq!(
+            snapshot.parties.landlord_representative_role.as_deref(),
+            Some("Gérant")
+        );
     }
 }

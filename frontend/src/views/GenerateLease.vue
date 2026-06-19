@@ -76,6 +76,19 @@ const formData = ref({
   annex_dpe_provided: true,
   annex_erp_provided: true,
   annex_home_insurance_provided: true,
+  // Legal completeness: Section II characterisation
+  identifiant_fiscal: '',
+  habitat_type: 'collectif' as 'collectif' | 'individuel',
+  regime_juridique: 'copropriete' as 'monopropriete' | 'copropriete',
+  construction_period: '1989_2005' as 'avant_1949' | '1949_1974' | '1975_1989' | '1989_2005' | 'depuis_2005',
+  // Property-fact flags driving annex gating
+  electrical_installation_over_15y: false,
+  gas_installation_over_15y: false,
+  in_risk_zone: false,
+  annex_lead_provided: false,
+  annex_electrical_provided: false,
+  annex_gas_provided: false,
+  annex_risk_provided: false,
 })
 
 const propertyId = computed(() => route.params.propertyId as string)
@@ -140,6 +153,17 @@ function applyLeaseToForm(lease: Lease) {
     annex_dpe_provided: lease.annex_dpe_provided,
     annex_erp_provided: lease.annex_erp_provided,
     annex_home_insurance_provided: lease.annex_home_insurance_provided,
+    identifiant_fiscal: lease.identifiant_fiscal || '',
+    habitat_type: lease.habitat_type || 'collectif',
+    regime_juridique: lease.regime_juridique || 'copropriete',
+    construction_period: lease.construction_period || '1989_2005',
+    electrical_installation_over_15y: lease.electrical_installation_over_15y ?? false,
+    gas_installation_over_15y: lease.gas_installation_over_15y ?? false,
+    in_risk_zone: lease.in_risk_zone ?? false,
+    annex_lead_provided: lease.annex_lead_provided ?? false,
+    annex_electrical_provided: lease.annex_electrical_provided ?? false,
+    annex_gas_provided: lease.annex_gas_provided ?? false,
+    annex_risk_provided: lease.annex_risk_provided ?? false,
   }
 }
 
@@ -381,6 +405,17 @@ async function generateLease() {
       annex_dpe_provided: formData.value.annex_dpe_provided,
       annex_erp_provided: formData.value.annex_erp_provided,
       annex_home_insurance_provided: formData.value.annex_home_insurance_provided,
+      identifiant_fiscal: formData.value.identifiant_fiscal || undefined,
+      habitat_type: formData.value.habitat_type,
+      regime_juridique: formData.value.regime_juridique,
+      construction_period: formData.value.construction_period,
+      electrical_installation_over_15y: formData.value.electrical_installation_over_15y,
+      gas_installation_over_15y: formData.value.gas_installation_over_15y,
+      in_risk_zone: formData.value.in_risk_zone,
+      annex_lead_provided: formData.value.annex_lead_provided,
+      annex_electrical_provided: formData.value.annex_electrical_provided,
+      annex_gas_provided: formData.value.annex_gas_provided,
+      annex_risk_provided: formData.value.annex_risk_provided,
     }
 
     const isCreating = !generatedLeaseId.value
@@ -509,6 +544,39 @@ function back() {
           <div class="form-group">
             <label for="rooms">Pieces principales *</label>
             <input type="number" id="rooms" v-model="formData.main_room_count" min="1" required />
+          </div>
+        </div>
+
+        <div v-if="!formData.is_dom_tom" class="form-group">
+          <label for="ifl">Identifiant fiscal du logement (IFL) *</label>
+          <input type="text" id="ifl" v-model="formData.identifiant_fiscal" placeholder="Ex: 1234567890ABC" />
+          <small class="hint-text">Obligatoire (sauf DOM-TOM). Figure sur l'avis de taxe foncière.</small>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="habitatType">Type d'habitat *</label>
+            <select id="habitatType" v-model="formData.habitat_type">
+              <option value="collectif">Collectif</option>
+              <option value="individuel">Individuel</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="regimeJuridique">Régime juridique *</label>
+            <select id="regimeJuridique" v-model="formData.regime_juridique">
+              <option value="monopropriete">Monopropriété</option>
+              <option value="copropriete">Copropriété</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="constructionPeriod">Période de construction *</label>
+            <select id="constructionPeriod" v-model="formData.construction_period">
+              <option value="avant_1949">Avant 1949</option>
+              <option value="1949_1974">De 1949 à 1974</option>
+              <option value="1975_1989">De 1975 à 1989</option>
+              <option value="1989_2005">De 1989 à 2005</option>
+              <option value="depuis_2005">Depuis 2005</option>
+            </select>
           </div>
         </div>
 
@@ -764,6 +832,63 @@ function back() {
             <label>
               <input type="checkbox" v-model="formData.annex_home_insurance_provided" />
               Attestation assurance fournie
+            </label>
+          </div>
+        </div>
+
+        <h3 class="form-section-title">Diagnostics conditionnels</h3>
+        <p class="hint-text">
+          Cochez les situations applicables ; les annexes correspondantes deviennent obligatoires.
+        </p>
+
+        <div v-if="formData.construction_period === 'avant_1949'" class="form-group checkbox">
+          <label>
+            <input type="checkbox" v-model="formData.annex_lead_provided" />
+            Constat de risque d'exposition au plomb (Crep) fourni — obligatoire (construction avant 1949)
+          </label>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group checkbox">
+            <label>
+              <input type="checkbox" v-model="formData.electrical_installation_over_15y" />
+              Installation électrique de plus de 15 ans
+            </label>
+          </div>
+          <div class="form-group checkbox" v-if="formData.electrical_installation_over_15y">
+            <label>
+              <input type="checkbox" v-model="formData.annex_electrical_provided" />
+              Diagnostic électricité fourni
+            </label>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group checkbox">
+            <label>
+              <input type="checkbox" v-model="formData.gas_installation_over_15y" />
+              Installation gaz de plus de 15 ans
+            </label>
+          </div>
+          <div class="form-group checkbox" v-if="formData.gas_installation_over_15y">
+            <label>
+              <input type="checkbox" v-model="formData.annex_gas_provided" />
+              Diagnostic gaz fourni
+            </label>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group checkbox">
+            <label>
+              <input type="checkbox" v-model="formData.in_risk_zone" />
+              Logement en zone à risques (ERNT)
+            </label>
+          </div>
+          <div class="form-group checkbox" v-if="formData.in_risk_zone">
+            <label>
+              <input type="checkbox" v-model="formData.annex_risk_provided" />
+              État des risques (ERNT) fourni
             </label>
           </div>
         </div>

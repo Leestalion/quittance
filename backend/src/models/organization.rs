@@ -12,6 +12,11 @@ pub struct Organization {
     pub address: String,
     pub phone: Option<String>,
     pub email: Option<String>,
+    pub representative_name: Option<String>,
+    pub representative_role: Option<String>,
+    pub capital_social: Option<bigdecimal::BigDecimal>,
+    pub rcs_city: Option<String>,
+    pub is_family_sci: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -34,6 +39,11 @@ pub struct CreateOrganization {
     pub address: String,
     pub phone: Option<String>,
     pub email: Option<String>,
+    pub representative_name: Option<String>,
+    pub representative_role: Option<String>,
+    pub capital_social: Option<bigdecimal::BigDecimal>,
+    pub rcs_city: Option<String>,
+    pub is_family_sci: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -44,6 +54,11 @@ pub struct UpdateOrganization {
     pub address: Option<String>,
     pub phone: Option<String>,
     pub email: Option<String>,
+    pub representative_name: Option<String>,
+    pub representative_role: Option<String>,
+    pub capital_social: Option<bigdecimal::BigDecimal>,
+    pub rcs_city: Option<String>,
+    pub is_family_sci: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]

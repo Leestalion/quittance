@@ -164,6 +164,176 @@ impl TemplateCache {
             .collect::<Vec<_>>()
             .join("\n");
 
+        // --- Section II property characterisation (pre-rendered to keep context small) ---
+        let label = |opt: &Option<String>| opt.clone().unwrap_or_else(|| "—".to_string());
+        let habitat_label = match snapshot.property.habitat_type.as_deref() {
+            Some("collectif") => "Habitat collectif",
+            Some("individuel") => "Habitat individuel",
+            _ => "—",
+        };
+        let regime_label = match snapshot.property.regime_juridique.as_deref() {
+            Some("monopropriete") => "Monopropriété",
+            Some("copropriete") => "Copropriété",
+            _ => "—",
+        };
+        let construction_label = match snapshot.property.construction_period.as_deref() {
+            Some("avant_1949") => "Avant 1949",
+            Some("1949_1974") => "De 1949 à 1974",
+            Some("1975_1989") => "De 1975 à 1989",
+            Some("1989_2005") => "De 1989 à 2005",
+            Some("depuis_2005") => "Depuis 2005",
+            _ => "—",
+        };
+        let ifl_line = if snapshot.diagnostics.is_dom_tom {
+            String::new()
+        } else {
+            format!(
+                "Identifiant fiscal du logement : <strong>{}</strong><br>",
+                label(&snapshot.property.identifiant_fiscal)
+            )
+        };
+        let property_characterisation_block = format!(
+            "{}Type d'habitat : <strong>{}</strong><br>\
+             Régime juridique : <strong>{}</strong><br>\
+             Période de construction : <strong>{}</strong>",
+            ifl_line, habitat_label, regime_label, construction_label
+        );
+        let destination_block = match snapshot.lease_terms.destination.as_str() {
+            "mixte_professionnel_habitation" => " Destination des locaux : usage mixte professionnel et d'habitation.".to_string(),
+            _ => " Destination des locaux : usage d'habitation.".to_string(),
+        };
+
+        // --- Section IV payment modalities + energy reference year ---
+        let freq_label = match snapshot.financial_terms.rent_payment_frequency.as_str() {
+            "mensuel" => "mensuelle",
+            "trimestriel" => "trimestrielle",
+            other => other,
+        };
+        let timing_label = match snapshot.financial_terms.rent_payment_timing.as_str() {
+            "a_echoir" => "à échoir (d'avance)",
+            "a_terme_echu" => "à terme échu",
+            other => other,
+        };
+        let payment_terms_block = format!(
+            "Périodicité de paiement : <strong>{}</strong><br>\
+             Échéance : <strong>{}</strong><br>\
+             Date ou période de paiement : <strong>{}</strong>",
+            freq_label,
+            timing_label,
+            snapshot.financial_terms.rent_payment_period.clone().unwrap_or_else(|| "—".to_string())
+        );
+        let energy_year_line = match snapshot.diagnostics.energy_cost_year {
+            Some(y) => format!("Année de référence des prix de l'énergie : <strong>{}</strong>", y),
+            None => String::new(),
+        };
+        let rent_complement_block = match (
+            snapshot.financial_terms.rent_complement.as_deref(),
+            snapshot.financial_terms.rent_complement_justification.as_deref(),
+        ) {
+            (Some(c), Some(j)) if !c.is_empty() && !j.is_empty() => format!(
+                "Complément de loyer : <strong>{} €</strong> — Justification : {}",
+                c, j
+            ),
+            _ => String::new(),
+        };
+        let reference_rent_block = if snapshot.financial_terms.rent_controlled {
+            format!(
+                "Zone soumise à l'encadrement des loyers.<br>\
+                 Loyer de référence : <strong>{} €/m²</strong><br>\
+                 Loyer de référence majoré : <strong>{} €/m²</strong>",
+                snapshot.financial_terms.reference_rent.clone().unwrap_or_else(|| "—".to_string()),
+                snapshot.financial_terms.reference_rent_majorated.clone().unwrap_or_else(|| "—".to_string())
+            )
+        } else {
+            String::new()
+        };
+
+        // --- Section XI required-annex checklist gated by property facts ---
+        let yn = |b: Option<bool>| if b.unwrap_or(false) { "fourni" } else { "à fournir" };
+        let xi = &snapshot.lease_sections.section_xi_annexes;
+        let mut annex_items: Vec<String> = Vec::new();
+        if snapshot.property.construction_period.as_deref() == Some("avant_1949") {
+            annex_items.push(format!("<li>Constat de risque d'exposition au plomb (Crep) : {}</li>", yn(xi.annex_lead_provided)));
+        }
+        if snapshot.property.electrical_installation_over_15y {
+            annex_items.push(format!("<li>État de l'installation intérieure d'électricité : {}</li>", yn(xi.annex_electrical_provided)));
+        }
+        if snapshot.property.gas_installation_over_15y {
+            annex_items.push(format!("<li>État de l'installation intérieure de gaz : {}</li>", yn(xi.annex_gas_provided)));
+        }
+        if snapshot.property.in_risk_zone {
+            annex_items.push(format!("<li>État des risques (ERNT) : {}</li>", yn(xi.annex_risk_provided)));
+        }
+        let conditional_annex_block = if annex_items.is_empty() {
+            String::new()
+        } else {
+            format!("<ul>{}</ul>", annex_items.join(""))
+        };
+
+        // --- Landlord designation: branch on natural vs legal person (SCI) ---
+        let landlord_block = if snapshot.parties.landlord_kind == "legal" {
+            let p = &snapshot.parties;
+            let capital = p
+                .landlord_capital_social
+                .as_deref()
+                .map(|c| format!(" au capital de {} €", c))
+                .unwrap_or_default();
+            let rcs = match (p.landlord_rcs_city.as_deref(), p.landlord_registration_number.as_deref()) {
+                (Some(city), Some(num)) if !city.is_empty() && !num.is_empty() => {
+                    format!(", immatriculée au RCS de {} sous le numéro {}", city, num)
+                }
+                _ => String::new(),
+            };
+            let representative = match (
+                p.landlord_representative_name.as_deref(),
+                p.landlord_representative_role.as_deref(),
+            ) {
+                (Some(name), Some(role)) if !name.is_empty() && !role.is_empty() => {
+                    format!(", représentée par {} en qualité de {}", name, role)
+                }
+                (Some(name), _) if !name.is_empty() => format!(", représentée par {}", name),
+                _ => String::new(),
+            };
+            let family = if p.landlord_is_family_sci {
+                " (SCI constituée entre parents et alliés jusqu'au quatrième degré inclus)"
+            } else {
+                ""
+            };
+            let legal_form = p.landlord_legal_form.clone().unwrap_or_default();
+            format!(
+                "La société <strong>{}</strong>, {}{}, dont le siège social est situé {}{}{}{}, agissant en qualité de bailleur (personne morale).",
+                p.landlord_full_name, legal_form, capital, p.landlord_address, rcs, representative, family
+            )
+        } else {
+            format!(
+                "<strong>{}</strong>, demeurant à {}",
+                snapshot.parties.landlord_full_name, snapshot.parties.landlord_address
+            )
+        };
+
+        // Landlord signature line: SCI signs via its représentant.
+        let landlord_signature = if snapshot.parties.landlord_kind == "legal" {
+            let rep = snapshot
+                .parties
+                .landlord_representative_name
+                .clone()
+                .unwrap_or_else(|| snapshot.parties.landlord_full_name.clone());
+            let role = snapshot
+                .parties
+                .landlord_representative_role
+                .clone()
+                .unwrap_or_else(|| "Gérant".to_string());
+            format!(
+                "<div class=\"signature-line\">Le bailleur<br>{}<br>représentée par {} ({})</div>",
+                snapshot.parties.landlord_full_name, rep, role
+            )
+        } else {
+            format!(
+                "<div class=\"signature-line\">Le bailleur<br>{}</div>",
+                snapshot.parties.landlord_full_name
+            )
+        };
+
         // Build context object with all snapshot fields
         let context = json!({
             "landlord_full_name": snapshot.parties.landlord_full_name,
@@ -176,6 +346,8 @@ impl TemplateCache {
             "lessee_birth_place": snapshot.parties.lessee_birth_place,
             "lessees_block": lessees_block,
             "lessee_signatures_block": lessee_signatures_block,
+            "landlord_block": landlord_block,
+            "landlord_signature": landlord_signature,
             "property_address": snapshot.property.address,
             "property_type": snapshot.property.property_type,
             "habitable_surface": snapshot.property.habitable_surface,
@@ -211,6 +383,14 @@ impl TemplateCache {
             "annex_dpe_provided": snapshot.lease_sections.section_xi_annexes.annex_dpe_provided,
             "annex_entry_inventory_provided": snapshot.lease_sections.section_xi_annexes.annex_entry_inventory_provided,
             "annex_furniture_inventory_provided": snapshot.lease_sections.section_xi_annexes.annex_furniture_inventory_provided,
+            // Pre-rendered legal-completeness blocks
+            "property_characterisation_block": property_characterisation_block,
+            "destination_block": destination_block,
+            "payment_terms_block": payment_terms_block,
+            "energy_year_line": energy_year_line,
+            "reference_rent_block": reference_rent_block,
+            "rent_complement_block": rent_complement_block,
+            "conditional_annex_block": conditional_annex_block,
         });
         
         // Render each section
@@ -431,6 +611,131 @@ mod tests {
             .render_full_html(&snapshot)
             .expect("render ok");
         assert_eq!(preview_html, direct_html);
+    }
+
+    #[test]
+    fn renders_property_characterisation_and_payment_modalities() {
+        let cache = load_cache();
+        let mut s = make_snapshot(false, "compliant", None);
+        s.property.identifiant_fiscal = Some("1234567890ABC".to_string());
+        s.property.habitat_type = Some("collectif".to_string());
+        s.property.regime_juridique = Some("copropriete".to_string());
+        s.property.construction_period = Some("1989_2005".to_string());
+        s.financial_terms.rent_payment_frequency = "mensuel".to_string();
+        s.financial_terms.rent_payment_timing = "a_echoir".to_string();
+        s.financial_terms.rent_payment_period = Some("le 1er de chaque mois".to_string());
+        s.diagnostics.energy_cost_year = Some(2026);
+        let html = cache.render_full_html(&s).expect("render ok");
+        assert!(html.contains("1234567890ABC"));
+        assert!(html.contains("Habitat collectif"));
+        assert!(html.contains("Copropriété"));
+        assert!(html.contains("De 1989 à 2005"));
+        assert!(html.contains("Périodicité de paiement"));
+        assert!(html.contains("le 1er de chaque mois"));
+        assert!(html.contains("Année de référence des prix de l'énergie"));
+    }
+
+    #[test]
+    fn ifl_omitted_for_dom_tom() {
+        let cache = load_cache();
+        let mut s = make_snapshot(false, "compliant", None);
+        s.diagnostics.is_dom_tom = true;
+        s.property.identifiant_fiscal = None;
+        let html = cache.render_full_html(&s).expect("render ok");
+        assert!(!html.contains("Identifiant fiscal du logement"));
+    }
+
+    #[test]
+    fn reference_rent_lines_conditional_on_rent_control() {
+        let cache = load_cache();
+        // Not rent-controlled: no reference rent lines.
+        let s = make_snapshot(false, "compliant", None);
+        let html = cache.render_full_html(&s).expect("render ok");
+        assert!(!html.contains("Loyer de référence majoré"));
+
+        // Rent-controlled: reference rent lines appear.
+        let mut s2 = make_snapshot(false, "compliant", None);
+        s2.financial_terms.rent_controlled = true;
+        s2.financial_terms.reference_rent = Some("20".to_string());
+        s2.financial_terms.reference_rent_majorated = Some("24".to_string());
+        let html2 = cache.render_full_html(&s2).expect("render ok");
+        assert!(html2.contains("Loyer de référence majoré"));
+    }
+
+    #[test]
+    fn conditional_annexes_gated_by_property_facts() {
+        let cache = load_cache();
+        // Pre-1949 → lead annex line present.
+        let mut s = make_snapshot(false, "compliant", None);
+        s.property.construction_period = Some("avant_1949".to_string());
+        s.lease_sections.section_xi_annexes.annex_lead_provided = Some(false);
+        let html = cache.render_full_html(&s).expect("render ok");
+        assert!(html.contains("Constat de risque d'exposition au plomb"));
+
+        // No triggering facts → no conditional annex lines.
+        let s2 = make_snapshot(false, "compliant", None);
+        let html2 = cache.render_full_html(&s2).expect("render ok");
+        assert!(!html2.contains("Constat de risque d'exposition au plomb"));
+        assert!(!html2.contains("installation intérieure de gaz"));
+    }
+
+    fn make_sci_org(is_family: bool) -> crate::models::organization::Organization {
+        use chrono::Utc;
+        crate::models::organization::Organization {
+            id: Uuid::new_v4(),
+            name: "SCI MD16".to_string(),
+            legal_form: "SCI".to_string(),
+            siret: Some("12345678900012".to_string()),
+            address: "10 rue du Test, 75001 Paris".to_string(),
+            phone: None,
+            email: None,
+            representative_name: Some("Thomas Martin".to_string()),
+            representative_role: Some("Gérant".to_string()),
+            capital_social: Some(bigdecimal::BigDecimal::from(1000)),
+            rcs_city: Some("Paris".to_string()),
+            is_family_sci: is_family,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    #[test]
+    fn renders_full_sci_designation_and_representative_signature() {
+        let cache = load_cache();
+        let mut s = make_snapshot(false, "compliant", None);
+        s.apply_organization_landlord(&make_sci_org(false));
+        let html = cache.render_full_html(&s).expect("render ok");
+        assert!(html.contains("SCI MD16"));
+        assert!(html.contains("au capital de 1000 €"));
+        assert!(html.contains("immatriculée au RCS de Paris sous le numéro 123456789"));
+        assert!(html.contains("représentée par Thomas Martin en qualité de Gérant"));
+        // Signature block shows the représentant for the SCI.
+        assert!(html.contains("représentée par Thomas Martin (Gérant)"));
+    }
+
+    #[test]
+    fn family_sci_mention_conditional() {
+        let cache = load_cache();
+        let mut family = make_snapshot(false, "compliant", None);
+        family.apply_organization_landlord(&make_sci_org(true));
+        let html = cache.render_full_html(&family).expect("render ok");
+        assert!(html.contains("jusqu'au quatrième degré"));
+
+        let mut non_family = make_snapshot(false, "compliant", None);
+        non_family.apply_organization_landlord(&make_sci_org(false));
+        let html2 = cache.render_full_html(&non_family).expect("render ok");
+        assert!(!html2.contains("jusqu'au quatrième degré"));
+    }
+
+    #[test]
+    fn natural_person_landlord_unchanged() {
+        let cache = load_cache();
+        // Default make_snapshot has a natural-person landlord.
+        let s = make_snapshot(false, "compliant", None);
+        let html = cache.render_full_html(&s).expect("render ok");
+        assert!(html.contains("Jean Dupont"));
+        assert!(!html.contains("immatriculée au RCS"));
+        assert!(!html.contains("en qualité de"));
     }
 }
 

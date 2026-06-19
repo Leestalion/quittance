@@ -28,7 +28,7 @@ Legal stakes verified (Service-Public, 01/04/2026): exceeding the rent cap in an
 
 - **Decision: Property characterisation (IFL, habitat type, régime juridique, construction period) is captured on the lease (or property) and made mandatory for issuance.**
   - Rationale: These are mandatory Section II mentions; absence makes the contract incomplete. Construction period also gates the lead-diagnosis annex.
-  - Open implementation choice: store on `properties` (stable per dwelling) vs `leases` (snapshot at signing). Leaning `properties` for IFL/habitat/régime/period since they are property facts, surfaced and editable in the lease flow.
+  - Decision (confirmed): store on `leases`, matching the existing pattern where all comparable characterisation fields already live on the lease (`habitable_surface`, `main_room_count`, `heating_mode`, `hot_water_mode`, `dpe_class`, `is_dom_tom`, `energy_cost_*`). This keeps snapshot building, validation, and the form uniform and avoids cross-entity plumbing. Re-entry per lease is acceptable (a property typically has one active lease; the form may pre-fill from the property later as a nicety).
 
 - **Decision: Render all mandatory captured mentions in their sections.**
   - Rationale: Capture without rendering still yields a non-compliant document. Section II and IV templates must display destination, payment modalities, energy reference year, complement + justification, previous-tenant fields, inventory date.
@@ -48,7 +48,7 @@ Legal stakes verified (Service-Public, 01/04/2026): exceeding the rent cap in an
 
 - [More required fields raise form friction] → Mitigation: sectioned form, contextual help, conditional gating so users only see what applies.
 - [Installation-age / risk-zone facts may be unknown to a private landlord] → Mitigation: explicit, simple inputs (e.g., "installation électrique > 15 ans ?", "construction avant 1949 ?", "zone à risques ?") that drive the gating; clear guidance text.
-- [Storing property facts on `properties` vs `leases`] → Mitigation: choose `properties` for true property facts with the value snapshotted into the lease's canonical snapshot at issuance for stability.
+- [Storing the new characterisation fields] → Mitigation: store on `leases` to match the existing pattern (surface/rooms/dpe/heating already on the lease); the canonical snapshot is built from the lease, so rendering and validation stay uniform.
 - [Backward compatibility for existing incomplete leases] → Mitigation: existing leases remain readable; issuance of a compliant document requires completing the new fields (consistent with the signable-output goal).
 - [Encadrée validation false positives] → Mitigation: only enforced when the manual rent-control toggle is on; complement-with-justification path documented.
 

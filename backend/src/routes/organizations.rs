@@ -44,8 +44,9 @@ async fn create_organization(
     
     let org = sqlx::query_as::<_, Organization>(
         r#"
-        INSERT INTO organizations (name, legal_form, siret, address, phone, email)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO organizations (name, legal_form, siret, address, phone, email,
+            representative_name, representative_role, capital_social, rcs_city, is_family_sci)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         RETURNING *
         "#,
     )
@@ -55,6 +56,11 @@ async fn create_organization(
     .bind(&payload.address)
     .bind(&payload.phone)
     .bind(&payload.email)
+    .bind(&payload.representative_name)
+    .bind(&payload.representative_role)
+    .bind(&payload.capital_social)
+    .bind(&payload.rcs_city)
+    .bind(payload.is_family_sci.unwrap_or(false))
     .fetch_one(&mut *tx)
     .await?;
 
@@ -144,6 +150,11 @@ async fn update_organization(
             address = COALESCE($5, address),
             phone = COALESCE($6, phone),
             email = COALESCE($7, email),
+            representative_name = COALESCE($8, representative_name),
+            representative_role = COALESCE($9, representative_role),
+            capital_social = COALESCE($10, capital_social),
+            rcs_city = COALESCE($11, rcs_city),
+            is_family_sci = COALESCE($12, is_family_sci),
             updated_at = CURRENT_TIMESTAMP
         WHERE id = $1
         RETURNING *
@@ -156,6 +167,11 @@ async fn update_organization(
     .bind(&payload.address)
     .bind(&payload.phone)
     .bind(&payload.email)
+    .bind(&payload.representative_name)
+    .bind(&payload.representative_role)
+    .bind(&payload.capital_social)
+    .bind(&payload.rcs_city)
+    .bind(payload.is_family_sci)
     .fetch_optional(&db.pool)
     .await?
     .ok_or(AppError::NotFound("Organization not found".to_string()))?;

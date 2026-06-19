@@ -23,6 +23,18 @@ function baseDraft(overrides: Partial<LeaseComplianceDraft> = {}): LeaseComplian
     annex_dpe_provided: true,
     annex_entry_inventory_provided: true,
     annex_furniture_inventory_provided: true,
+    is_dom_tom: false,
+    identifiant_fiscal: '1234567890ABC',
+    habitat_type: 'collectif',
+    regime_juridique: 'copropriete',
+    construction_period: '1989_2005',
+    electrical_installation_over_15y: false,
+    gas_installation_over_15y: false,
+    in_risk_zone: false,
+    annex_lead_provided: false,
+    annex_electrical_provided: false,
+    annex_gas_provided: false,
+    annex_risk_provided: false,
     ...overrides,
   }
 }
@@ -85,6 +97,72 @@ describe('buildComplianceWarnings', () => {
     expect(buildComplianceWarnings(draft, true)).toContain(
       "L'inventaire du mobilier est obligatoire pour un logement meublé.",
     )
+  })
+
+  it('requires IFL for non-DOM-TOM but not DOM-TOM', () => {
+    const metro = baseDraft({ is_dom_tom: false, identifiant_fiscal: '' })
+    expect(buildComplianceWarnings(metro)).toContain(
+      "L'identifiant fiscal du logement est obligatoire (sauf DOM-TOM).",
+    )
+    const dom = baseDraft({ is_dom_tom: true, identifiant_fiscal: '' })
+    expect(buildComplianceWarnings(dom)).not.toContain(
+      "L'identifiant fiscal du logement est obligatoire (sauf DOM-TOM).",
+    )
+  })
+
+  it('flags rent above the majorated reference without justified complement', () => {
+    const warnings = buildComplianceWarnings(
+      baseDraft({
+        rent_controlled: true,
+        reference_rent_majorated: 900,
+        monthly_rent: 1000,
+        rent_complement: 0,
+      }),
+    )
+    expect(warnings).toContain(
+      'En zone encadrée, le loyer dépasse le loyer de référence majoré sans complément justifié.',
+    )
+  })
+
+  it('accepts rent above the majorated reference with a justified complement', () => {
+    const warnings = buildComplianceWarnings(
+      baseDraft({
+        rent_controlled: true,
+        reference_rent_majorated: 900,
+        monthly_rent: 1000,
+        rent_complement: 100,
+        rent_complement_justification: 'Vue exceptionnelle',
+      }),
+    )
+    expect(warnings).not.toContain(
+      'En zone encadrée, le loyer dépasse le loyer de référence majoré sans complément justifié.',
+    )
+  })
+
+  it('gates the lead diagnosis for pre-1949 construction', () => {
+    const warnings = buildComplianceWarnings(
+      baseDraft({ construction_period: 'avant_1949', annex_lead_provided: false }),
+    )
+    expect(warnings).toContain(
+      "Le constat plomb (Crep) est obligatoire pour une construction avant 1949.",
+    )
+  })
+
+  it('gates electrical/gas/risk diagnoses by their fact flags', () => {
+    expect(
+      buildComplianceWarnings(baseDraft({ electrical_installation_over_15y: true, annex_electrical_provided: false })),
+    ).toContain('Le diagnostic électricité est obligatoire (installation de plus de 15 ans).')
+    expect(
+      buildComplianceWarnings(baseDraft({ gas_installation_over_15y: true, annex_gas_provided: false })),
+    ).toContain('Le diagnostic gaz est obligatoire (installation de plus de 15 ans).')
+    expect(
+      buildComplianceWarnings(baseDraft({ in_risk_zone: true, annex_risk_provided: false })),
+    ).toContain("L'état des risques (ERNT) est obligatoire en zone à risques.")
+  })
+
+  it('does not require conditional annexes when facts do not apply', () => {
+    const warnings = buildComplianceWarnings(baseDraft())
+    expect(warnings).toEqual([])
   })
 })
 
