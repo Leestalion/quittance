@@ -21,10 +21,10 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const showReceiptsDropdown = ref(false)
 
-type PropertyTab = 'info' | 'leases' | 'receipts'
+type PropertyTab = 'info' | 'furniture' | 'leases' | 'receipts'
 
 function getTabFromQuery(tab: unknown): PropertyTab {
-  return tab === 'leases' || tab === 'receipts' ? tab : 'info'
+  return tab === 'furniture' || tab === 'leases' || tab === 'receipts' ? tab : 'info'
 }
 
 const activeTab = ref<PropertyTab>(getTabFromQuery(route.query.tab))
@@ -388,6 +388,9 @@ async function deleteProperty() {
       <button @click="setActiveTab('info')" :class="{ active: activeTab === 'info' }">
         Informations
       </button>
+      <button @click="setActiveTab('furniture')" :class="{ active: activeTab === 'furniture' }">
+        Mobilier
+      </button>
       <button @click="setActiveTab('leases')" :class="{ active: activeTab === 'leases' }">
         Baux ({{ leases.length }})
       </button>
@@ -426,9 +429,44 @@ async function deleteProperty() {
             <strong>Description:</strong>
             <p>{{ property.description }}</p>
           </div>
+          
+          <div class="danger-zone">
+            <h3>⚠️ Zone de danger</h3>
+            <p>Cette action est irréversible. Tous les baux et quittances associés seront supprimés.</p>
+            <button @click="deleteProperty" class="delete-property-btn">
+              🗑️ Supprimer cette propriété
+            </button>
+          </div>
+        </div>
 
-          <div v-if="property.furnished" class="furniture-manager">
-            <h3>🪑 Sets de mobilier</h3>
+        <!-- Active Lease Info -->
+        <div v-if="activeLease" class="info-card">
+          <h2>Bail actif</h2>
+          <div class="info-grid">
+            <div><strong>Locataire:</strong> {{ currentTenant?.name }}</div>
+            <div><strong>Début:</strong> {{ new Date(activeLease.start_date).toLocaleDateString() }}</div>
+            <div><strong>Durée:</strong> {{ activeLease.duration_months }} mois</div>
+            <div><strong>Loyer:</strong> {{ activeLease.monthly_rent }} €</div>
+            <div><strong>Charges:</strong> {{ activeLease.charges }} €</div>
+            <div><strong>Dépôt:</strong> {{ activeLease.deposit }} €</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Furniture Tab -->
+      <div v-if="activeTab === 'furniture' && property" class="furniture-section">
+        <div class="info-card">
+          <h2>🪑 Mobilier</h2>
+
+          <div v-if="!property.furnished" class="furniture-empty-state">
+            <p>
+              Cette propriété est actuellement marquée comme non meublée.
+              Activez le statut meublé dans les informations de la propriété pour gérer les sets de mobilier.
+            </p>
+          </div>
+
+          <div v-else class="furniture-manager">
+            <h3>Sets de mobilier</h3>
 
             <div class="furniture-create-set">
               <input v-model="furnitureSetForm.name" type="text" placeholder="Nom du set (ex: T2 standard)" />
@@ -477,27 +515,6 @@ async function deleteProperty() {
                 </tbody>
               </table>
             </div>
-          </div>
-          
-          <div class="danger-zone">
-            <h3>⚠️ Zone de danger</h3>
-            <p>Cette action est irréversible. Tous les baux et quittances associés seront supprimés.</p>
-            <button @click="deleteProperty" class="delete-property-btn">
-              🗑️ Supprimer cette propriété
-            </button>
-          </div>
-        </div>
-
-        <!-- Active Lease Info -->
-        <div v-if="activeLease" class="info-card">
-          <h2>Bail actif</h2>
-          <div class="info-grid">
-            <div><strong>Locataire:</strong> {{ currentTenant?.name }}</div>
-            <div><strong>Début:</strong> {{ new Date(activeLease.start_date).toLocaleDateString() }}</div>
-            <div><strong>Durée:</strong> {{ activeLease.duration_months }} mois</div>
-            <div><strong>Loyer:</strong> {{ activeLease.monthly_rent }} €</div>
-            <div><strong>Charges:</strong> {{ activeLease.charges }} €</div>
-            <div><strong>Dépôt:</strong> {{ activeLease.deposit }} €</div>
           </div>
         </div>
       </div>

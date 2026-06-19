@@ -759,7 +759,7 @@ function back() {
             </label>
           </div>
           <small class="hint-text">
-            Vous pouvez créer/modifier des sets de mobilier dans la fiche de la propriété.
+            Vous pouvez créer/modifier des sets de mobilier dans Propriété -> Mobilier.
           </small>
         </div>
 
